@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cyber Security Snake Game (Mobile-Friendly)</title>
+<title>Cyber Security Snake Game (Enhanced Mobile)</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -77,15 +77,14 @@
 
 <script>
 const scriptURL = "https://script.google.com/macros/s/AKfycbwyhRoswSaVI7FRiy-miuUuVrlaLitre_EpxmXloe5zMBfQdXFZAh-w5CmPc09LIjsyWQ/exec";
-
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const box = 15;
 let snake = [{x:5*box, y:5*box}];
 let direction = "RIGHT";
-let food = randomFood();
+let foods = generateFoods(3); // multiple foods
 let score = 0;
-let speed = 300; // slower for mobile
+let speed = 350; // slower for mobile
 
 const questions = [
   {q:"Which is a strong password?", opts:["123456","password","Q#4tY9$2","abcdef"], a:2},
@@ -93,7 +92,6 @@ const questions = [
   {q:"Firewall protects your?", opts:["Network","Printer","Battery","Display"], a:0},
   {q:"Safe email practice?", opts:["Click all links","Ignore spam","Share passwords","Open attachments"], a:1}
 ];
-
 let currentQ = 0;
 
 document.addEventListener("keydown", dirHandler);
@@ -115,7 +113,10 @@ function draw(){
     ctx.fillStyle=i===0?"#00ffcc":"#009999";
     ctx.fillRect(snake[i].x,snake[i].y,box,box);
   }
-  ctx.fillStyle="red"; ctx.fillRect(food.x,food.y,box,box);
+
+  // draw multiple foods
+  ctx.fillStyle="red";
+  foods.forEach(f => ctx.fillRect(f.x, f.y, box, box));
 
   let headX=snake[0].x, headY=snake[0].y;
   if(direction==="LEFT") headX-=box;
@@ -123,18 +124,23 @@ function draw(){
   if(direction==="RIGHT") headX+=box;
   if(direction==="DOWN") headY+=box;
 
-  // wrap-around logic
+  // wrap-around
   if(headX < 0) headX = canvas.width - box;
   if(headY < 0) headY = canvas.height - box;
   if(headX >= canvas.width) headX = 0;
   if(headY >= canvas.height) headY = 0;
 
-  // Food eaten
-  if(headX===food.x && headY===food.y){
-    score++;
-    if(score%3===0) askQuestion();
-    food=randomFood();
-  } else snake.pop();
+  // check if snake eats any food
+  let ate = false;
+  for (let i=0; i<foods.length; i++) {
+    if (headX === foods[i].x && headY === foods[i].y) {
+      score++;
+      ate = true;
+      foods[i] = randomFood(); // replace eaten one
+      if (score % 3 === 0) askQuestion();
+    }
+  }
+  if (!ate) snake.pop();
 
   const newHead={x:headX,y:headY};
   if(collide(newHead)){
@@ -143,7 +149,8 @@ function draw(){
     sendScore();
   }
   snake.unshift(newHead);
-  ctx.fillStyle="#fff"; ctx.fillText("Score:"+score,10,15);
+
+  ctx.fillStyle="#fff"; ctx.font="14px Arial"; ctx.fillText("Score: "+score,10,15);
 }
 
 function randomFood(){
@@ -152,6 +159,13 @@ function randomFood(){
     y:Math.floor(Math.random()*(canvas.height/box))*box
   };
 }
+
+function generateFoods(n){
+  let arr=[];
+  for(let i=0;i<n;i++) arr.push(randomFood());
+  return arr;
+}
+
 function collide(head){
   for(let i=0;i<snake.length;i++)
     if(head.x===snake[i].x && head.y===snake[i].y) return true;
@@ -187,7 +201,7 @@ function sendScore(){
   fetch(scriptURL,{
     method:"POST",
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name,email,score,level:"Mobile",badge})
+    body:JSON.stringify({name,email,score,level:"Mobile-MultiFood",badge})
   });
 }
 
