@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cyber Security Snake Game (Enhanced Mobile)</title>
+<title>Cyber Security Snake Game (Color Option Version)</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -20,26 +20,25 @@
     background: #000;
     margin-top: 10px;
   }
-  #question { color: #00ffcc; font-size: 16px; margin: 8px; }
-  #options {
+  #question { color: #00ffcc; font-size: 16px; margin: 10px; }
+  #legend {
     display: flex;
-    flex-direction: column;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px;
+  }
+  .legend-item {
+    display: flex;
     align-items: center;
-    width: 90%;
-    margin: 5px auto;
+    font-size: 14px;
   }
-  .option {
-    background: #222;
-    border: 2px solid #00ffcc;
-    border-radius: 6px;
-    padding: 8px;
-    margin: 4px;
-    width: 95%;
-    max-width: 300px;
-    cursor: pointer;
-    transition: 0.2s;
+  .color-box {
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    border: 1px solid #fff;
   }
-  .option:hover { background: #00ffcc; color: #000; }
   #controls { display: flex; flex-direction: column; align-items: center; margin-top: 8px; }
   .arrow-row { display: flex; justify-content: center; }
   .arrow-btn {
@@ -54,7 +53,7 @@
   }
   @media (max-width: 600px) {
     canvas { width: 90vw; height: 90vw; }
-    .arrow-btn { width: 60px; height: 60px; font-size: 30px; }
+    .arrow-btn { width: 55px; height: 55px; font-size: 28px; }
   }
 </style>
 </head>
@@ -63,7 +62,7 @@
 <div id="gameContainer">
   <canvas id="gameCanvas" width="300" height="300"></canvas>
   <div id="question"></div>
-  <div id="options"></div>
+  <div id="legend"></div>
 
   <div id="controls">
     <div class="arrow-row"><button class="arrow-btn" id="up">⬆️</button></div>
@@ -82,9 +81,11 @@ const ctx = canvas.getContext("2d");
 const box = 15;
 let snake = [{x:5*box, y:5*box}];
 let direction = "RIGHT";
-let foods = generateFoods(3); // multiple foods
 let score = 0;
-let speed = 350; // slower for mobile
+let speed = 300;
+
+// 4 colors correspond to options A-D
+const colors = ["red", "yellow", "green", "blue"];
 
 const questions = [
   {q:"Which is a strong password?", opts:["123456","password","Q#4tY9$2","abcdef"], a:2},
@@ -92,7 +93,9 @@ const questions = [
   {q:"Firewall protects your?", opts:["Network","Printer","Battery","Display"], a:0},
   {q:"Safe email practice?", opts:["Click all links","Ignore spam","Share passwords","Open attachments"], a:1}
 ];
+
 let currentQ = 0;
+let foods = [];
 
 document.addEventListener("keydown", dirHandler);
 document.getElementById("up").onclick=()=>dirHandler({keyCode:38});
@@ -107,16 +110,34 @@ function dirHandler(e){
   else if(e.keyCode===40 && direction!=="UP") direction="DOWN";
 }
 
+function randomFood(){
+  return {
+    x:Math.floor(Math.random()*(canvas.width/box))*box,
+    y:Math.floor(Math.random()*(canvas.height/box))*box
+  };
+}
+
+function generateFoods(){
+  foods = [];
+  for (let i=0;i<4;i++){
+    let pos = randomFood();
+    foods.push({x:pos.x, y:pos.y, color:colors[i]});
+  }
+}
+
 function draw(){
-  ctx.fillStyle="#000"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
   for(let i=0;i<snake.length;i++){
     ctx.fillStyle=i===0?"#00ffcc":"#009999";
     ctx.fillRect(snake[i].x,snake[i].y,box,box);
   }
 
-  // draw multiple foods
-  ctx.fillStyle="red";
-  foods.forEach(f => ctx.fillRect(f.x, f.y, box, box));
+  foods.forEach(f=>{
+    ctx.fillStyle=f.color;
+    ctx.fillRect(f.x,f.y,box,box);
+  });
 
   let headX=snake[0].x, headY=snake[0].y;
   if(direction==="LEFT") headX-=box;
@@ -124,23 +145,19 @@ function draw(){
   if(direction==="RIGHT") headX+=box;
   if(direction==="DOWN") headY+=box;
 
-  // wrap-around
-  if(headX < 0) headX = canvas.width - box;
-  if(headY < 0) headY = canvas.height - box;
-  if(headX >= canvas.width) headX = 0;
-  if(headY >= canvas.height) headY = 0;
+  // wrap-around edges
+  if(headX<0) headX=canvas.width-box;
+  if(headY<0) headY=canvas.height-box;
+  if(headX>=canvas.width) headX=0;
+  if(headY>=canvas.height) headY=0;
 
-  // check if snake eats any food
-  let ate = false;
-  for (let i=0; i<foods.length; i++) {
-    if (headX === foods[i].x && headY === foods[i].y) {
-      score++;
-      ate = true;
-      foods[i] = randomFood(); // replace eaten one
-      if (score % 3 === 0) askQuestion();
-    }
+  let ateIndex = foods.findIndex(f=>f.x===headX && f.y===headY);
+  if(ateIndex>-1){
+    handleAnswer(ateIndex);
+    foods[ateIndex] = randomFood(); // reposition that color
+  } else {
+    snake.pop();
   }
-  if (!ate) snake.pop();
 
   const newHead={x:headX,y:headY};
   if(collide(newHead)){
@@ -150,20 +167,9 @@ function draw(){
   }
   snake.unshift(newHead);
 
-  ctx.fillStyle="#fff"; ctx.font="14px Arial"; ctx.fillText("Score: "+score,10,15);
-}
-
-function randomFood(){
-  return {
-    x:Math.floor(Math.random()*(canvas.width/box))*box,
-    y:Math.floor(Math.random()*(canvas.height/box))*box
-  };
-}
-
-function generateFoods(n){
-  let arr=[];
-  for(let i=0;i<n;i++) arr.push(randomFood());
-  return arr;
+  ctx.fillStyle="#fff";
+  ctx.font="14px Arial";
+  ctx.fillText("Score: "+score,10,15);
 }
 
 function collide(head){
@@ -172,26 +178,35 @@ function collide(head){
   return false;
 }
 
-// ------------------- Questions -------------------
+function handleAnswer(colorIndex){
+  const q = questions[currentQ % questions.length];
+  if(colorIndex === q.a){
+    score += 5;
+    alert("✅ Correct! +5 points");
+  } else {
+    score -= 2;
+    alert("❌ Wrong! -2 points");
+  }
+  currentQ++;
+  askQuestion();
+}
+
 function askQuestion(){
   const q = questions[currentQ % questions.length];
-  document.getElementById("question").innerText=q.q;
-  const optDiv=document.getElementById("options");
-  optDiv.innerHTML="";
-  q.opts.forEach((o,i)=>{
-    const btn=document.createElement("div");
-    btn.className="option"; btn.innerText=o;
-    btn.onclick=()=>checkAnswer(i);
-    optDiv.appendChild(btn);
+  document.getElementById("question").innerText = q.q;
+  const legendDiv = document.getElementById("legend");
+  legendDiv.innerHTML = "";
+  q.opts.forEach((opt, i)=>{
+    const item = document.createElement("div");
+    item.className="legend-item";
+    const box=document.createElement("div");
+    box.className="color-box";
+    box.style.background=colors[i];
+    item.appendChild(box);
+    item.appendChild(document.createTextNode(opt));
+    legendDiv.appendChild(item);
   });
-}
-function checkAnswer(sel){
-  const q=questions[currentQ%questions.length];
-  if(sel===q.a){ score+=5; alert("✅ Correct! +5"); }
-  else { score-=3; alert("❌ Wrong! -3"); }
-  currentQ++;
-  document.getElementById("question").innerText="";
-  document.getElementById("options").innerHTML="";
+  generateFoods();
 }
 
 function sendScore(){
@@ -201,7 +216,7 @@ function sendScore(){
   fetch(scriptURL,{
     method:"POST",
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name,email,score,level:"Mobile-MultiFood",badge})
+    body:JSON.stringify({name,email,score,level:"Color-Option",badge})
   });
 }
 
