@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cyber Security Snake Game (Mobile)</title>
+<title>Cyber Security Snake Game (Mobile-Friendly)</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -36,7 +36,6 @@
     margin: 4px;
     width: 95%;
     max-width: 300px;
-    color: #fff;
     cursor: pointer;
     transition: 0.2s;
   }
@@ -86,7 +85,7 @@ let snake = [{x:5*box, y:5*box}];
 let direction = "RIGHT";
 let food = randomFood();
 let score = 0;
-let speed = 200;
+let speed = 300; // slower for mobile
 
 const questions = [
   {q:"Which is a strong password?", opts:["123456","password","Q#4tY9$2","abcdef"], a:2},
@@ -124,6 +123,12 @@ function draw(){
   if(direction==="RIGHT") headX+=box;
   if(direction==="DOWN") headY+=box;
 
+  // wrap-around logic
+  if(headX < 0) headX = canvas.width - box;
+  if(headY < 0) headY = canvas.height - box;
+  if(headX >= canvas.width) headX = 0;
+  if(headY >= canvas.height) headY = 0;
+
   // Food eaten
   if(headX===food.x && headY===food.y){
     score++;
@@ -132,7 +137,7 @@ function draw(){
   } else snake.pop();
 
   const newHead={x:headX,y:headY};
-  if(headX<0||headY<0||headX>=canvas.width||headY>=canvas.height||collide(newHead)){
+  if(collide(newHead)){
     clearInterval(game);
     alert("Game Over! Score: "+score);
     sendScore();
