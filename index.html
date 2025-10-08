@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyber Security Snake Game 🐍 with Leaderboard</title>
+<style>
+  body{background:#000;color:#fff;font-family:"Segoe UI",sans-serif;text-align:center;margin:0;overflow-x:hidden}
+  h1{color:#00e0ff;margin:10px 0}
+  canvas{background:#111;display:block;margin:10px auto;border:2px solid #00e0ff;touch-action:none}
+  #questionBox,#scoreboard,#feedback{margin:5px auto}
+  #optionsBox{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:6px}
+  .opt{padding:4px 8px;border-radius:6px}
+  .red{background:red}.blue{background:blue}.yellow{background:gold;color:black}.green{background:green}
+  input,button{margin:5px;padding:6px;font-size:16px}
+  #controls{position:fixed;bottom:15px;left:0;right:0;display:flex;flex-direction:column;align-items:center;z-index:10}
+  .row{display:flex;justify-content:center;gap:40px}
+  .btn{background:#222;border:2px solid #00e0ff;border-radius:10px;color:#00e0ff;width:60px;height:60px;font-size:24px;display:flex;align-items:center;justify-content:center;user-select:none}
+  .btn:active{background:#00e0ff;color:#000}
+  #leaderboard{margin-top:20px}
+  table{margin:0 auto;border-collapse:collapse}
+  th,td{border:1px solid #00e0ff;padding:6px 12px}
+  th{background:#00e0ff;color:#000}
+  #splash,#login,#game,#leaderboard{max-width:700px;margin:auto;padding:10px}
+  .instruction{text-align:left;margin:10px auto;font-size:15px;line-height:1.5;background:#111;padding:10px;border-radius:10px}
+  button{background:#00e0ff;border:none;color:#000;border-radius:6px;font-weight:bold;cursor:pointer}
+  button:hover{background:#00b8cc}
+</style>
+</head>
+<body>
+
+<!-- Splash Screen -->
+<div id="splash">
+  <h1>🐍 Cyber Security Snake Game</h1>
+  <div class="instruction">
+    <p>Welcome to the <b>Cyber Security Snake Challenge!</b></p>
+    <ul>
+      <li>Control the snake using arrow keys (desktop) or swipe/tap (mobile).</li>
+      <li>Each food block represents an <b>MCQ option</b>.</li>
+      <li>Eat the <b>correct answer</b> to gain +10 points.</li>
+      <li>Wrong answers deduct 5 points.</li>
+      <li>Earn badges: 🥉 Bronze | 🥈 Silver | 🥇 Gold</li>
+      <li>Your final score will appear on the leaderboard.</li>
+    </ul>
+  </div>
+  <button onclick="showLogin()">Start Game</button>
+</div>
+
+<!-- Login Screen -->
+<div id="login" style="display:none;">
+  <h2>Player Details</h2>
+  <p>Enter your name and email before starting:</p>
+  <input id="name" placeholder="Your Name"><br>
+  <input id="email" placeholder="Your Email"><br>
+  <button onclick="startGame()">Continue</button>
+</div>
+
+<!-- Game Area -->
+<div id="game" style="display:none;">
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+  <div id="questionBox"></div>
+  <div id="optionsBox"></div>
+  <div id="scoreboard"></div>
+  <div id="feedback"></div>
+</div>
+
+<!-- Touch Controls -->
+<div id="controls" style="display:none;">
+  <div class="row"><div class="btn" data-dir="up">▲</div></div>
+  <div class="row">
+    <div class="btn" data-dir="left">◀</div>
+    <div class="btn" data-dir="down">▼</div>
+    <div class="btn" data-dir="right">▶</div>
+  </div>
+</div>
+
+<!-- Leaderboard -->
+<div id="leaderboard" style="display:none;">
+  <h2>🏆 Leaderboard (Top 10)</h2>
+  <div id="leaderTable"></div>
+</div>
+
+<script>
+const scriptURL = "https://script.google.com/macros/s/AKfycbwyhRoswSaVI7FRiy-miuUuVrlaLitre_EpxmXloe5zMBfQdXFZAh-w5CmPc09LIjsyWQ/exec";
+const csvURL = "1ONjhAqB0WCWqQ9Qef0aRRjimsvUf1SDGJaDLCsF1iG0";
+
+let player={name:"",email:""},grid=20,snake=[{x:10,y:10}],dir={x:1,y:0},foods=[],score=0,speed=220,last=0,over=false;
+const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
+const qBox=document.getElementById("questionBox"),optBox=document.getElementById("optionsBox"),
+scoreBox=document.getElementById("scoreboard"),feed=document.getElementById("feedback");
+
+function showLogin(){
+ document.getElementById("splash").style.display="none";
+ document.getElementById("login").style.display="block";
+}
+
+const questions={
+ Easy:[
+  {q:"Which is a strong password?",opts:["123456","Password","MyDog2025@","abcdef"],a:"MyDog2025@"},
+  {q:"What does a firewall do?",opts:["Blocks unauthorized access","Deletes files","Connects Wi-Fi","Encrypts data"],a:"Blocks unauthorized access"},
+  {q:"Which of these is social engineering?",opts:["Phishing","Firewall","Encryption","Coding"],a:"Phishing"}],
+ Medium:[
+  {q:"What ensures confidentiality of data?",opts:["Backup","Encryption","Antivirus","Firewall"],a:"Encryption"},
+  {q:"What does HTTPS stand for?",opts:["Hyper Text Transfer Protocol Secure","High Transfer Protocol","Host Transfer System","Hyper Type Text"],a:"Hyper Text Transfer Protocol Secure"},
+  {q:"What is 2FA?",opts:["Two passwords","Password + verification","Two antiviruses","Two networks"],a:"Password + verification"}],
+ Hard:[
+  {q:"Which is NOT malware?",opts:["Trojan","Spyware","Worm","Firewall"],a:"Firewall"},
+  {q:"Purpose of antivirus?",opts:["Detect and remove malicious programs","Decorate desktop","Speed up PC","Browse internet"],a:"Detect and remove malicious programs"},
+  {q:"Common phishing indicator?",opts:["Official email","Unsolicited request for info","Secure URL","No spelling errors"],a:"Unsolicited request for info"}]
+};
+
+function level(){return score<30?"Easy":score<80?"Medium":"Hard";}
+let currentQ;
+
+function loadQ(){
+ let set=questions[level()];
+ currentQ=set[Math.floor(Math.random()*set.length)];
+ foods=[];let pos=[];
+ for(let i=0;i<4;i++){let p;do{
+  p={x:Math.floor(Math.random()*canvas.width/grid),y:Math.floor(Math.random()*canvas.height/grid)};
+ }while(pos.some(pp=>pp.x==p.x&&pp.y==p.y));pos.push(p);
+ foods.push({pos:p,text:currentQ.opts[i]});}
+ const colors=["red","blue","yellow","green"];
+ qBox.innerHTML="<b>Q:</b> "+currentQ.q;
+ optBox.innerHTML="";
+ currentQ.opts.forEach((o,i)=>{const d=document.createElement("div");d.className="opt "+colors[i];d.textContent=o;optBox.appendChild(d);});
+ scoreBox.textContent=`Score: ${score} | Level: ${level()}`;
+}
+
+function update(){
+ const head={x:(snake[0].x+dir.x+canvas.width/grid)%(canvas.width/grid),
+             y:(snake[0].y+dir.y+canvas.height/grid)%(canvas.height/grid)};
+ if(snake.some((s,i)=>i&&s.x==head.x&&s.y==head.y)){gameOver();return;}
+ snake.unshift(head);
+ let ate=false;
+ for(const f of foods){
+  if(f.pos.x==head.x&&f.pos.y==head.y){ate=true;
+    if(f.text==currentQ.a){score+=10;feed.textContent="✅ Correct!";speed=Math.max(160,speed-8);}
+    else{score=Math.max(0,score-5);feed.textContent="❌ Wrong!";speed=Math.min(260,speed+6);}
+    loadQ();break;}
+ }
+ if(!ate)snake.pop();scoreBox.textContent=`Score: ${score} | Level: ${level()}`;
+}
+
+function draw(){
+ ctx.fillStyle="#111";ctx.fillRect(0,0,canvas.width,canvas.height);
+ ctx.fillStyle="#00e0ff";snake.forEach(s=>ctx.fillRect(s.x*grid,s.y*grid,grid-1,grid-1));
+ const colors=["red","blue","yellow","green"];
+ foods.forEach((f,i)=>{ctx.fillStyle=colors[i];ctx.fillRect(f.pos.x*grid,f.pos.y*grid,grid-2,grid-2);});
+}
+
+function loop(t){if(!last||t-last>=speed){if(!over)update();draw();last=t;}requestAnimationFrame(loop);}
+
+function gameOver(){
+ over=true;
+ const badge=score<50?"🥉 Bronze":score<120?"🥈 Silver":"🥇 Gold";
+ const mark = score<50?2:score<100?3:5;
+ feed.innerHTML=`<b>Game Over!</b><br>Score: ${score}<br>${badge} Badge<br>Marks: ${mark}`;
+ fetch(scriptURL,{method:"POST",headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({name:player.name,email:player.email,score,level:level(),badge})})
+   .then(()=>loadLeaderboard());
+}
+
+function startGame(){
+ player.name=document.getElementById("name").value.trim();
+ player.email=document.getElementById("email").value.trim();
+ if(!player.name||!player.email){alert("Please enter both name and email.");return;}
+ document.getElementById("login").style.display="none";
+ document.getElementById("game").style.display="block";
+ document.getElementById("controls").style.display="flex";
+ if(window.innerWidth<700){canvas.width=window.innerWidth*0.9;canvas.height=300;}
+ loadQ();requestAnimationFrame(loop);
+}
+
+function changeDir(d){
+ if(d=="up"&&dir.y==0)dir={x:0,y:-1};
+ if(d=="down"&&dir.y==0)dir={x:0,y:1};
+ if(d=="left"&&dir.x==0)dir={x:-1,y:0};
+ if(d=="right"&&dir.x==0)dir={x:1,y:0};
+}
+
+document.querySelectorAll(".btn").forEach(b=>b.addEventListener("click",()=>changeDir(b.dataset.dir)));
+window.addEventListener("keydown",e=>{
+ if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key))e.preventDefault();
+ if(e.key=="ArrowUp"&&dir.y==0)dir={x:0,y:-1};
+ if(e.key=="ArrowDown"&&dir.y==0)dir={x:0,y:1};
+ if(e.key=="ArrowLeft"&&dir.x==0)dir={x:-1,y:0};
+ if(e.key=="ArrowRight"&&dir.x==0)dir={x:1,y:0};
+});
+let sx=0,sy=0;
+canvas.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;});
+canvas.addEventListener("touchend",e=>{
+ const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+ if(Math.abs(dx)>Math.abs(dy)){if(dx>20)changeDir("right");else if(dx<-20)changeDir("left");}
+ else{if(dy>20)changeDir("down");else if(dy<-20)changeDir("up");}
+});
+
+function loadLeaderboard(){
+ fetch(csvURL)
+  .then(r=>r.text())
+  .then(txt=>{
+   const rows=txt.trim().split("\n").slice(1)
+     .map(r=>r.split(","))
+     .map(c=>({name:c[1],score:parseInt(c[3]||0)}))
+     .sort((a,b)=>b.score-a.score)
+     .slice(0,10);
+   let html="<table><tr><th>Rank</th><th>Name</th><th>Score</th></tr>";
+   rows.forEach((r,i)=>html+=`<tr><td>${i+1}</td><td>${r.name}</td><td>${r.score}</td></tr>`);
+   html+="</table>";
+   document.getElementById("leaderTable").innerHTML=html;
+   document.getElementById("leaderboard").style.display="block";
+  })
+  .catch(err=>console.error("Leaderboard error:",err));
+}
+</script>
+</body>
+</html>
