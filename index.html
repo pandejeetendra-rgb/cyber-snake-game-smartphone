@@ -3,106 +3,72 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cyber Security Snake Game</title>
-
+<title>Cyber Security Snake Game (Mobile)</title>
 <style>
   body {
     font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
     background: #0e0e0e;
     color: #fff;
+    margin: 0;
     text-align: center;
   }
-
-  h1 {
+  h1 { font-size: 20px; margin: 10px 0; color: #00ffcc; }
+  #gameContainer { display: flex; flex-direction: column; align-items: center; }
+  canvas {
+    border: 2px solid #00ffcc;
+    border-radius: 10px;
+    background: #000;
     margin-top: 10px;
   }
-
-  #gameContainer {
+  #question { color: #00ffcc; font-size: 16px; margin: 8px; }
+  #options {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    width: 90%;
+    margin: 5px auto;
   }
-
-  canvas {
-    background: #111;
-    border: 2px solid #00ffcc;
-    border-radius: 10px;
-    margin-top: 10px;
-  }
-
-  #question {
-    font-size: 18px;
-    margin: 10px;
-    color: #00ffcc;
-  }
-
-  .options {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
   .option {
     background: #222;
     border: 2px solid #00ffcc;
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: 6px;
+    padding: 8px;
+    margin: 4px;
+    width: 95%;
+    max-width: 300px;
+    color: #fff;
     cursor: pointer;
     transition: 0.2s;
   }
-
-  .option:hover {
-    background: #00ffcc;
-    color: #000;
-  }
-
-  #controls {
-    margin-top: 5px;
-  }
-
+  .option:hover { background: #00ffcc; color: #000; }
+  #controls { display: flex; flex-direction: column; align-items: center; margin-top: 8px; }
+  .arrow-row { display: flex; justify-content: center; }
   .arrow-btn {
-    width: 50px;
-    height: 50px;
-    font-size: 24px;
     background: #00ffcc;
     border: none;
-    border-radius: 8px;
     color: #000;
-    margin: 3px;
-    cursor: pointer;
-    transition: background 0.2s;
+    font-size: 28px;
+    margin: 4px;
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
   }
-
-  .arrow-btn:active {
-    background: #009999;
-  }
-
-  @media (max-width: 768px) {
+  @media (max-width: 600px) {
     canvas { width: 90vw; height: 90vw; }
-    .arrow-btn { width: 60px; height: 60px; font-size: 28px; }
-    #question { font-size: 16px; }
+    .arrow-btn { width: 60px; height: 60px; font-size: 30px; }
   }
 </style>
 </head>
 <body>
-<h1>Cyber Security Snake Game 🐍</h1>
-
+<h1>🐍 Cyber Security Snake Game</h1>
 <div id="gameContainer">
-  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  <canvas id="gameCanvas" width="300" height="300"></canvas>
   <div id="question"></div>
-  <div class="options" id="options"></div>
+  <div id="options"></div>
 
-  <!-- On-screen controls right under the question -->
   <div id="controls">
-    <div>
-      <button class="arrow-btn" id="up">⬆️</button>
-    </div>
-    <div>
+    <div class="arrow-row"><button class="arrow-btn" id="up">⬆️</button></div>
+    <div class="arrow-row">
       <button class="arrow-btn" id="left">⬅️</button>
       <button class="arrow-btn" id="down">⬇️</button>
       <button class="arrow-btn" id="right">➡️</button>
@@ -111,153 +77,117 @@
 </div>
 
 <script>
-// --------------------------------------------------
-// Configuration
-// --------------------------------------------------
 const scriptURL = "https://script.google.com/macros/s/AKfycbwyhRoswSaVI7FRiy-miuUuVrlaLitre_EpxmXloe5zMBfQdXFZAh-w5CmPc09LIjsyWQ/exec";
-const leaderboardURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTb9gCePuU5XZNkMwgcitPhLG4BHrSNUbSM24lLMF1UiU84SSLIqlXtIinVYZviBOYx6g3RZEEn__0D/pubhtml";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const box = 20;
-let snake = [{x: 9 * box, y: 10 * box}];
+const box = 15;
+let snake = [{x:5*box, y:5*box}];
 let direction = "RIGHT";
+let food = randomFood();
 let score = 0;
-let speed = 150;
+let speed = 200;
 
-// Basic cybersecurity questions
 const questions = [
-  {q: "Which is a strong password?", opts:["123456","password","Q#4tY9$2","abcdef"], a:2},
-  {q: "What does 'phishing' mean?", opts:["Fishing online","Tricking users for data","Sending files","Hacking wifi"], a:1},
-  {q: "What should you do with suspicious email links?", opts:["Click them","Ignore them","Forward them","Reply"], a:1},
-  {q: "Firewall protects your?", opts:["Network","Documents","Phone","Printer"], a:0}
+  {q:"Which is a strong password?", opts:["123456","password","Q#4tY9$2","abcdef"], a:2},
+  {q:"What is phishing?", opts:["Fishing","Tricking users","Video chat","Virus"], a:1},
+  {q:"Firewall protects your?", opts:["Network","Printer","Battery","Display"], a:0},
+  {q:"Safe email practice?", opts:["Click all links","Ignore spam","Share passwords","Open attachments"], a:1}
 ];
 
-let currentQuestion = 0;
-let food = {x: Math.floor(Math.random()*20)*box, y: Math.floor(Math.random()*20)*box};
+let currentQ = 0;
 
-// --------------------------------------------------
-// Game Logic
-// --------------------------------------------------
-document.addEventListener("keydown", directionHandler);
-document.getElementById("up").onclick = () => directionHandler({keyCode:38});
-document.getElementById("down").onclick = () => directionHandler({keyCode:40});
-document.getElementById("left").onclick = () => directionHandler({keyCode:37});
-document.getElementById("right").onclick = () => directionHandler({keyCode:39});
+document.addEventListener("keydown", dirHandler);
+document.getElementById("up").onclick=()=>dirHandler({keyCode:38});
+document.getElementById("down").onclick=()=>dirHandler({keyCode:40});
+document.getElementById("left").onclick=()=>dirHandler({keyCode:37});
+document.getElementById("right").onclick=()=>dirHandler({keyCode:39});
 
-function directionHandler(event) {
-  if(event.keyCode === 37 && direction !== "RIGHT") direction = "LEFT";
-  else if(event.keyCode === 38 && direction !== "DOWN") direction = "UP";
-  else if(event.keyCode === 39 && direction !== "LEFT") direction = "RIGHT";
-  else if(event.keyCode === 40 && direction !== "UP") direction = "DOWN";
+function dirHandler(e){
+  if(e.keyCode===37 && direction!=="RIGHT") direction="LEFT";
+  else if(e.keyCode===38 && direction!=="DOWN") direction="UP";
+  else if(e.keyCode===39 && direction!=="LEFT") direction="RIGHT";
+  else if(e.keyCode===40 && direction!=="UP") direction="DOWN";
 }
 
-function drawGame() {
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  for(let i=0;i<snake.length;i++) {
-    ctx.fillStyle = (i===0) ? "#00ffcc" : "#009999";
+function draw(){
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let i=0;i<snake.length;i++){
+    ctx.fillStyle=i===0?"#00ffcc":"#009999";
     ctx.fillRect(snake[i].x,snake[i].y,box,box);
   }
+  ctx.fillStyle="red"; ctx.fillRect(food.x,food.y,box,box);
 
-  ctx.fillStyle = "red";
-  ctx.fillRect(food.x,food.y,box,box);
+  let headX=snake[0].x, headY=snake[0].y;
+  if(direction==="LEFT") headX-=box;
+  if(direction==="UP") headY-=box;
+  if(direction==="RIGHT") headX+=box;
+  if(direction==="DOWN") headY+=box;
 
-  let snakeX = snake[0].x;
-  let snakeY = snake[0].y;
-
-  if(direction==="LEFT") snakeX -= box;
-  if(direction==="UP") snakeY -= box;
-  if(direction==="RIGHT") snakeX += box;
-  if(direction==="DOWN") snakeY += box;
-
-  // Check collision with food
-  if(snakeX === food.x && snakeY === food.y){
+  // Food eaten
+  if(headX===food.x && headY===food.y){
     score++;
-    newFood();
-  } else {
-    snake.pop();
-  }
+    if(score%3===0) askQuestion();
+    food=randomFood();
+  } else snake.pop();
 
-  const newHead = {x: snakeX, y: snakeY};
-
-  if(snakeX < 0 || snakeY < 0 || snakeX >= canvas.width || snakeY >= canvas.height || collision(newHead,snake)){
+  const newHead={x:headX,y:headY};
+  if(headX<0||headY<0||headX>=canvas.width||headY>=canvas.height||collide(newHead)){
     clearInterval(game);
-    alert("Game Over! Score: " + score);
-    sendData();
+    alert("Game Over! Score: "+score);
+    sendScore();
   }
-
   snake.unshift(newHead);
-
-  ctx.fillStyle = "white";
-  ctx.font = "16px Arial";
-  ctx.fillText("Score: " + score, 10, 20);
+  ctx.fillStyle="#fff"; ctx.fillText("Score:"+score,10,15);
 }
 
-function newFood(){
-  food = {x: Math.floor(Math.random()*20)*box, y: Math.floor(Math.random()*20)*box};
-  loadQuestion();
+function randomFood(){
+  return {
+    x:Math.floor(Math.random()*(canvas.width/box))*box,
+    y:Math.floor(Math.random()*(canvas.height/box))*box
+  };
 }
-
-function collision(head, array){
-  for(let i=0;i<array.length;i++){
-    if(head.x===array[i].x && head.y===array[i].y) return true;
-  }
+function collide(head){
+  for(let i=0;i<snake.length;i++)
+    if(head.x===snake[i].x && head.y===snake[i].y) return true;
   return false;
 }
 
-// --------------------------------------------------
-// Question + Interaction
-// --------------------------------------------------
-function loadQuestion(){
-  const q = questions[currentQuestion % questions.length];
-  document.getElementById("question").innerText = q.q;
+// ------------------- Questions -------------------
+function askQuestion(){
+  const q = questions[currentQ % questions.length];
+  document.getElementById("question").innerText=q.q;
+  const optDiv=document.getElementById("options");
+  optDiv.innerHTML="";
+  q.opts.forEach((o,i)=>{
+    const btn=document.createElement("div");
+    btn.className="option"; btn.innerText=o;
+    btn.onclick=()=>checkAnswer(i);
+    optDiv.appendChild(btn);
+  });
+}
+function checkAnswer(sel){
+  const q=questions[currentQ%questions.length];
+  if(sel===q.a){ score+=5; alert("✅ Correct! +5"); }
+  else { score-=3; alert("❌ Wrong! -3"); }
+  currentQ++;
+  document.getElementById("question").innerText="";
+  document.getElementById("options").innerHTML="";
+}
 
-  const optionsDiv = document.getElementById("options");
-  optionsDiv.innerHTML = "";
-
-  q.opts.forEach((opt, idx)=>{
-    const btn = document.createElement("div");
-    btn.className = "option";
-    btn.innerText = opt;
-    btn.onclick = ()=>checkAnswer(idx);
-    optionsDiv.appendChild(btn);
+function sendScore(){
+  const name=prompt("Enter your name:");
+  const email=prompt("Enter your email:");
+  const badge=score>=20?"Gold":score>=10?"Silver":"Bronze";
+  fetch(scriptURL,{
+    method:"POST",
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,email,score,level:"Mobile",badge})
   });
 }
 
-function checkAnswer(selected){
-  const q = questions[currentQuestion % questions.length];
-  if(selected === q.a){
-    score += 5;
-    alert("✅ Correct! +5 points");
-  } else {
-    score -= 3;
-    alert("❌ Wrong! -3 points");
-  }
-  currentQuestion++;
-}
-
-// --------------------------------------------------
-// Send Data to Google Sheet
-// --------------------------------------------------
-function sendData(){
-  fetch(scriptURL, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      name: prompt("Enter your name:"),
-      email: prompt("Enter your email:"),
-      score: score,
-      level: "Basic",
-      badge: score >= 20 ? "Gold" : score >=10 ? "Silver" : "Bronze"
-    })
-  });
-}
-
-// Start game
-loadQuestion();
-const game = setInterval(drawGame, speed);
+askQuestion();
+const game=setInterval(draw,speed);
 </script>
 </body>
 </html>
