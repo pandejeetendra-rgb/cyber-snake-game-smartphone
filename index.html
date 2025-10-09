@@ -2,25 +2,32 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Cyber Security Snake Game – Level 1</title>
 <style>
   body { margin:0; background:#0e0e0e; color:#fff; font-family:Arial,sans-serif; text-align:center; }
   h1 { margin:12px 0; color:#00e0ff; font-size:20px; }
   #gameContainer { display:flex; flex-direction:column; align-items:center; }
-  canvas { background:#000; border:2px solid #00e0ff; border-radius:10px; margin-top:8px; }
-  #question { color:#00e0ff; font-size:16px; margin:10px 0 4px; }
-  #options { display:flex; flex-direction:column; gap:6px; width:92%; max-width:360px; margin:0 auto 6px; }
+  canvas { background:#000; border:2px solid #00e0ff; border-radius:10px; margin-top:8px; touch-action:none; }
+  #question { color:#00e0ff; font-size:16px; margin:10px 0 6px; }
+  #options { display:flex; flex-direction:column; gap:6px; width:92%; max-width:380px; margin:0 auto 8px; }
   .opt-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid #00e0ff; border-radius:8px; background:#121212; }
   .swatch { width:18px; height:18px; border:1px solid #fff; border-radius:3px; flex:0 0 18px; }
   .opt-text { text-align:left; flex:1; }
   #feedback { min-height:20px; margin:4px 0 8px; font-size:14px; }
-  #controls { display:flex; flex-direction:column; align-items:center; gap:6px; margin:6px 0 14px; }
+  #controls { display:flex; flex-direction:column; align-items:center; gap:6px; margin:6px 0 10px; }
   .row { display:flex; gap:10px; justify-content:center; }
   .btn { width:58px; height:58px; border-radius:10px; border:none; background:#00e0ff; color:#000; font-size:26px; }
   #submitBtn {
-    display:none; margin-top:10px; background:#00ff88; color:#000; border:none;
-    padding:10px 20px; border-radius:8px; font-size:16px; cursor:pointer;
+    display:none; margin:8px 0 16px; background:#00ff88; color:#000; border:none;
+    padding:10px 18px; border-radius:8px; font-size:16px; cursor:pointer;
+  }
+  /* Floating leaderboard button */
+  .floating-leaderboard {
+    position:fixed; right:14px; bottom:14px; z-index:50;
+    background:#ffd54f; color:#000; border:none; border-radius:24px;
+    padding:12px 16px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.4);
+    text-decoration:none;
   }
   @media (max-width:600px){
     canvas { width:90vw; height:90vw; }
@@ -33,6 +40,7 @@
 
   <div id="gameContainer">
     <canvas id="gameCanvas" width="300" height="300"></canvas>
+
     <div id="question"></div>
     <div id="options"></div>
     <div id="feedback"></div>
@@ -45,178 +53,224 @@
         <button class="btn" id="right">➡️</button>
       </div>
     </div>
+
     <button id="submitBtn">Submit Score 🏆</button>
   </div>
 
+  <!-- Floating leaderboard -->
+  <a class="floating-leaderboard" id="leaderboardBtn" target="_blank" rel="noopener">View Leaderboard 🏆</a>
+
+  <!-- CORS-proof submission helpers -->
+  <iframe name="hidden_iframe" style="display:none"></iframe>
+  <form id="scoreForm" method="POST" target="hidden_iframe" style="display:none">
+    <input type="hidden" name="name" />
+    <input type="hidden" name="email" />
+    <input type="hidden" name="score" />
+    <input type="hidden" name="level" />
+    <input type="hidden" name="badge" />
+  </form>
+
 <script>
+/* ======= CONFIG: put your URLs here ======= */
 const scriptURL = "https://script.google.com/macros/s/AKfycbwyhRoswSaVI7FRiy-miuUuVrlaLitre_EpxmXloe5zMBfQdXFZAh-w5CmPc09LIjsyWQ/exec";
+const leaderboardURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTb9gCePuU5XZNkMwgcitPhLG4BHrSNUbSM24lLMF1UiU84SSLIqlXtIinVYZviBOYx6g3RZEEn__0D/pubhtml";
+
+/* ======= Basic setup ======= */
+document.getElementById("leaderboardBtn").href = leaderboardURL;
+document.getElementById("scoreForm").action = scriptURL;
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const box = 15;
-let snake = [{ x: 5*box, y: 5*box }];
+const box = 15;                         // grid size
+let snake = [{ x:5*box, y:5*box }];     // start
 let dir = "RIGHT";
 let score = 0;
-let speed = 340;
-let foods = [];
-let currentQuestion = 0;
+let speed = 340;                         // slower for smartphone
+let foods = [];                          // 4 foods (A–D) with fixed colors
+const colors = ["red","yellow","green","blue"]; // option A,B,C,D
+let loopId = null;
+
 const questionsPerLevel = 5;
-const colors = ["red", "yellow", "green", "blue"];
-let gameInterval = null;
+let qIndex = 0;
 
 const questions = [
   { q:"Which is a strong password?", opts:["123456","password","Q#4tY9$2","abcdef"], a:2 },
-  { q:"What is phishing?", opts:["Fishing","Tricking users","Video chat","Virus"], a:1 },
-  { q:"Firewall protects your?", opts:["Network","Printer","Battery","Display"], a:0 },
-  { q:"Safe email practice?", opts:["Click all links","Ignore spam","Share passwords","Open attachments"], a:1 },
-  { q:"What should you do if you get a suspicious link?", opts:["Click it","Ignore it","Share it","Bookmark it"], a:1 },
-  { q:"What is a strong authentication method?", opts:["2FA","Simple password","Open Wi-Fi","Public login"], a:0 },
-  { q:"Which one is NOT malware?", opts:["Trojan","Worm","Antivirus","Spyware"], a:2 },
-  { q:"VPN stands for?", opts:["Virtual Private Network","Verified Personal Network","Visible Public Node","Virtual Privacy Name"], a:0 }
+  { q:"What is phishing?",          opts:["Fishing","Tricking users","Video chat","Virus"], a:1 },
+  { q:"Firewall protects your?",    opts:["Network","Printer","Battery","Display"], a:0 },
+  { q:"Safe email practice?",       opts:["Click all links","Ignore spam","Share passwords","Open attachments"], a:1 },
+  { q:"Which one is NOT malware?",  opts:["Trojan","Worm","Antivirus","Spyware"], a:2 },
+  { q:"What does 2FA add?",         opts:["Faster Wi-Fi","Extra verification","More storage","More tabs"], a:1 },
+  { q:"HTTPS means…",               opts:["Secure connection","More ads","Free data","Higher speed"], a:0 },
+  { q:"Best place for passwords?",  opts:["Sticky note","Shared doc","Password manager","Browser address bar"], a:2 }
 ];
 
-document.addEventListener("keydown", e=>{
+/* ======= Controls ======= */
+document.addEventListener("keydown", (e)=>{
   if(e.key==="ArrowLeft" && dir!=="RIGHT") dir="LEFT";
-  if(e.key==="ArrowUp" && dir!=="DOWN") dir="UP";
+  if(e.key==="ArrowUp" && dir!=="DOWN")    dir="UP";
   if(e.key==="ArrowRight" && dir!=="LEFT") dir="RIGHT";
-  if(e.key==="ArrowDown" && dir!=="UP") dir="DOWN";
-  e.preventDefault();
+  if(e.key==="ArrowDown" && dir!=="UP")    dir="DOWN";
+  if(["ArrowLeft","ArrowUp","ArrowRight","ArrowDown"].includes(e.key)) e.preventDefault();
 });
-document.getElementById("up").onclick    = ()=>{ if(dir!=="DOWN")  dir="UP"; };
+document.getElementById("up").onclick    = ()=>{ if(dir!=="DOWN")  dir="UP";   };
 document.getElementById("down").onclick  = ()=>{ if(dir!=="UP")    dir="DOWN"; };
 document.getElementById("left").onclick  = ()=>{ if(dir!=="RIGHT") dir="LEFT"; };
 document.getElementById("right").onclick = ()=>{ if(dir!=="LEFT")  dir="RIGHT"; };
 
-function randomCell(){
+/* ======= Helpers ======= */
+function randCell(){
   return {
     x: Math.floor(Math.random()*(canvas.width/box))*box,
     y: Math.floor(Math.random()*(canvas.height/box))*box
   };
 }
-function spawnFoods(){
-  foods = [];
-  for (let i=0;i<4;i++){
-    let p = randomCell();
-    foods.push({x:p.x, y:p.y, color:colors[i], idx:i});
-  }
+function cellsEqual(a,b){ return a.x===b.x && a.y===b.y; }
+function blocked(p){
+  if (snake.some(s=>cellsEqual(s,p))) return true;
+  if (foods.some(f=>f && cellsEqual(f,p))) return true;
+  return false;
 }
-function draw(){
-  ctx.fillStyle="#000"; ctx.fillRect(0,0,canvas.width,canvas.height);
-  snake.forEach((s,i)=>{ ctx.fillStyle = i===0?"#00e0ff":"#0099aa"; ctx.fillRect(s.x,s.y,box,box); });
-  foods.forEach(f=>{ ctx.fillStyle=f.color; ctx.fillRect(f.x,f.y,box,box); });
-
-  let hx=snake[0].x, hy=snake[0].y;
-  if(dir==="LEFT") hx-=box;
-  if(dir==="RIGHT") hx+=box;
-  if(dir==="UP") hy-=box;
-  if(dir==="DOWN") hy+=box;
-
-  // wrap-around
-  if(hx<0)hx=canvas.width-box;
-  if(hy<0)hy=canvas.height-box;
-  if(hx>=canvas.width)hx=0;
-  if(hy>=canvas.height)hy=0;
-
-  let eaten = foods.findIndex(f=>f.x===hx && f.y===hy);
-  if(eaten>-1){
-    handleAnswer(eaten);
-    foods[eaten]=randomCell();
-    foods[eaten].color=colors[eaten];
-  } else snake.pop();
-
-  const newHead={x:hx,y:hy};
-  if(snake.some((s,i)=>i&&s.x===hx&&s.y===hy)){ clearInterval(gameInterval); gameOver(); }
-  snake.unshift(newHead);
-  ctx.fillStyle="#fff"; ctx.font="14px Arial"; ctx.fillText("Score: "+score,10,16);
+function spawnFoodFor(i){
+  let p;
+  do { p = randCell(); } while (blocked(p));
+  foods[i] = { x:p.x, y:p.y, color:colors[i], idx:i };
 }
 
+/* ======= UI ======= */
 function renderQuestion(){
-  const q=questions[currentQuestion];
-  document.getElementById("question").textContent=q.q;
-  const opts=document.getElementById("options");
-  opts.innerHTML="";
-  q.opts.forEach((t,i)=>{
-    const row=document.createElement("div");
-    row.className="opt-row";
-    const sw=document.createElement("div");
-    sw.className="swatch"; sw.style.background=colors[i];
-    const tx=document.createElement("div");
-    tx.className="opt-text"; tx.textContent=t;
+  const q = questions[qIndex % questions.length];
+  document.getElementById("question").textContent = q.q;
+
+  const cont = document.getElementById("options");
+  cont.innerHTML = "";
+  q.opts.forEach((text, i)=>{
+    const row = document.createElement("div");
+    row.className = "opt-row";
+    const sw = document.createElement("div");
+    sw.className = "swatch";
+    sw.style.background = colors[i];
+    const tx = document.createElement("div");
+    tx.className = "opt-text";
+    tx.textContent = text;
     row.appendChild(sw); row.appendChild(tx);
-    opts.appendChild(row);
+    cont.appendChild(row);
   });
 }
 
-function handleAnswer(colorIndex){
-  const q = questions[currentQuestion];
-  if(colorIndex===q.a){
-    score+=5;
-    document.getElementById("feedback").textContent="✅ Correct! +5";
-  }else{
-    score=Math.max(0,score-2);
-    document.getElementById("feedback").textContent="❌ Wrong! -2";
+/* ======= Game loop ======= */
+function draw(){
+  // background
+  ctx.fillStyle="#000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // snake
+  snake.forEach((s,i)=>{
+    ctx.fillStyle = i===0 ? "#00e0ff" : "#0099aa";
+    ctx.fillRect(s.x, s.y, box, box);
+  });
+
+  // foods
+  foods.forEach(f=>{
+    ctx.fillStyle = f.color;
+    ctx.fillRect(f.x, f.y, box, box);
+  });
+
+  // next head position
+  let hx = snake[0].x, hy = snake[0].y;
+  if (dir==="LEFT")  hx -= box;
+  if (dir==="RIGHT") hx += box;
+  if (dir==="UP")    hy -= box;
+  if (dir==="DOWN")  hy += box;
+
+  // wrap-around walls
+  if (hx < 0) hx = canvas.width - box;
+  if (hy < 0) hy = canvas.height - box;
+  if (hx >= canvas.width)  hx = 0;
+  if (hy >= canvas.height) hy = 0;
+
+  // eat?
+  const eatIdx = foods.findIndex(f => f.x===hx && f.y===hy);
+  if (eatIdx > -1){
+    handleAnswer(eatIdx);
+    spawnFoodFor(eatIdx);    // respawn SAME color elsewhere
+  } else {
+    snake.pop();
   }
-  currentQuestion++;
-  if(currentQuestion>=questionsPerLevel){
-    endLevel();
-  }else{
+
+  // self-collision
+  const head = {x:hx, y:hy};
+  if (snake.some((s,i)=> i && cellsEqual(s, head))){
+    stopGame("Game Over! Score: " + score);
+    return;
+  }
+  snake.unshift(head);
+
+  // HUD
+  ctx.fillStyle="#fff";
+  ctx.font="14px Arial";
+  ctx.fillText("Score: " + score, 10, 16);
+}
+
+function handleAnswer(colorIdx){
+  const q = questions[qIndex % questions.length];
+  if (colorIdx === q.a){
+    score += 5;
+    document.getElementById("feedback").textContent = "✅ Correct! +5";
+  } else {
+    score = Math.max(0, score - 2);
+    document.getElementById("feedback").textContent = "❌ Wrong! -2";
+  }
+  qIndex++;
+  if (qIndex >= questionsPerLevel){
+    stopGame("🎉 Level 1 Complete! Final Score: " + score);
+    document.getElementById("submitBtn").style.display = "inline-block";
+  } else {
     renderQuestion();
   }
 }
 
-function endLevel(){
-  clearInterval(gameInterval);
-  document.getElementById("feedback").textContent="🎉 Level 1 Complete! Final Score: "+score;
-  document.getElementById("submitBtn").style.display="inline-block";
+function stopGame(msg){
+  if (loopId) clearInterval(loopId);
+  loopId = null;
+  alert(msg);
 }
 
-function sendScore() {
+/* ======= Score submit (CORS-proof) ======= */
+function sendScore(){
   const name  = prompt("Enter your name:");
   const email = prompt("Enter your email:");
+  if (!name || !email){ alert("Please enter both name and email."); return; }
+
   const badge = score >= 20 ? "Gold" : score >= 10 ? "Silver" : "Bronze";
 
-  if (!name || !email) {
-    alert("Please enter both name and email to submit your score.");
-    return;
-  }
+  // 1) POST via hidden form -> iframe (no CORS issues)
+  const form = document.getElementById("scoreForm");
+  form.elements["name"].value  = name;
+  form.elements["email"].value = email;
+  form.elements["score"].value = String(score);
+  form.elements["level"].value = "Level 1";
+  form.elements["badge"].value = badge;
+  form.submit();
 
-  const btn = document.getElementById("submitBtn");
-  btn.innerText = "⏳ Submitting...";
-  btn.disabled = true;
+  // 2) Fire a tiny GET beacon as a backup (also no CORS issues)
+  const params = new URLSearchParams({name,email,score:String(score),level:"Level 1",badge});
+  const img = new Image();
+  img.src = `${scriptURL}?${params.toString()}&t=${Date.now()}`;
 
-  const payload = { name, email, score, level: "Level 1", badge };
-
-  // 1. Try POST first
-  fetch(scriptURL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    mode: "no-cors"
-  })
-  .then(() => {
-    alert("✅ Score submitted successfully!");
-  })
-  .catch(() => {
-    // 2. Fallback using GET if POST fails
-    const params = new URLSearchParams(payload).toString();
-    const url = `${scriptURL}?${params}`;
-    fetch(url)
-      .then(() => alert("✅ Score submitted via fallback method!"))
-      .catch(() => alert("⚠️ Could not submit score even with fallback."));
-  })
-  .finally(() => {
-    btn.innerText = "Submit Score 🏆";
-    btn.disabled = false;
-  });
+  alert("✅ Score submitted. Check the leaderboard.");
 }
 
+document.getElementById("submitBtn").addEventListener("click", sendScore);
 
-function startGame(){
-  spawnFoods();
+/* ======= Init ======= */
+function start(){
+  // 4 colored foods (A–D), no overlaps
+  foods = new Array(4);
+  for (let i=0;i<4;i++) spawnFoodFor(i);
   renderQuestion();
-  gameInterval=setInterval(draw,speed);
+  loopId = setInterval(draw, speed);
 }
-startGame();
+start();
 </script>
 </body>
 </html>
