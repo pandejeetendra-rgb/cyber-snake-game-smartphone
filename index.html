@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Cyber Security Snake Game — Color Options</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cyber Security Snake Game – Level 1</title>
 <style>
-  body { margin:0; background:#0e0e0e; color:#fff; font-family:Arial, sans-serif; text-align:center; }
+  body { margin:0; background:#0e0e0e; color:#fff; font-family:Arial,sans-serif; text-align:center; }
   h1 { margin:12px 0; color:#00e0ff; font-size:20px; }
   #gameContainer { display:flex; flex-direction:column; align-items:center; }
   canvas { background:#000; border:2px solid #00e0ff; border-radius:10px; margin-top:8px; }
@@ -18,6 +18,10 @@
   #controls { display:flex; flex-direction:column; align-items:center; gap:6px; margin:6px 0 14px; }
   .row { display:flex; gap:10px; justify-content:center; }
   .btn { width:58px; height:58px; border-radius:10px; border:none; background:#00e0ff; color:#000; font-size:26px; }
+  #submitBtn {
+    display:none; margin-top:10px; background:#00ff88; color:#000; border:none;
+    padding:10px 20px; border-radius:8px; font-size:16px; cursor:pointer;
+  }
   @media (max-width:600px){
     canvas { width:90vw; height:90vw; }
     .btn { width:56px; height:56px; font-size:26px; }
@@ -25,11 +29,10 @@
 </style>
 </head>
 <body>
-  <h1>🐍 Cyber Security Snake Game</h1>
+  <h1>🐍 Cyber Security Snake Game – Level 1</h1>
 
   <div id="gameContainer">
     <canvas id="gameCanvas" width="300" height="300"></canvas>
-
     <div id="question"></div>
     <div id="options"></div>
     <div id="feedback"></div>
@@ -42,178 +45,157 @@
         <button class="btn" id="right">➡️</button>
       </div>
     </div>
+    <button id="submitBtn">Submit Score 🏆</button>
   </div>
 
 <script>
 const scriptURL = "https://script.google.com/macros/s/AKfycbwyhRoswSaVI7FRiy-miuUuVrlaLitre_EpxmXloe5zMBfQdXFZAh-w5CmPc09LIjsyWQ/exec";
 
-// Canvas & game state
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const box = 15;                        // grid size
-let snake = [{ x: 5*box, y: 5*box }];  // start
+const box = 15;
+let snake = [{ x: 5*box, y: 5*box }];
 let dir = "RIGHT";
 let score = 0;
-let speed = 340;                       // slower for mobile
-let foods = [];                        // 4 colored foods
-const colors = ["red", "yellow", "green", "blue"]; // A, B, C, D
-const feedback = document.getElementById("feedback");
+let speed = 340;
+let foods = [];
+let currentQuestion = 0;
+const questionsPerLevel = 5;
+const colors = ["red", "yellow", "green", "blue"];
+let gameInterval = null;
 
-// Questions
 const questions = [
   { q:"Which is a strong password?", opts:["123456","password","Q#4tY9$2","abcdef"], a:2 },
-  { q:"What is phishing?",          opts:["Fishing","Tricking users","Video chat","Virus"], a:1 },
-  { q:"Firewall protects your?",    opts:["Network","Printer","Battery","Display"], a:0 },
-  { q:"Safe email practice?",       opts:["Click all links","Ignore spam","Share passwords","Open attachments"], a:1 }
+  { q:"What is phishing?", opts:["Fishing","Tricking users","Video chat","Virus"], a:1 },
+  { q:"Firewall protects your?", opts:["Network","Printer","Battery","Display"], a:0 },
+  { q:"Safe email practice?", opts:["Click all links","Ignore spam","Share passwords","Open attachments"], a:1 },
+  { q:"What should you do if you get a suspicious link?", opts:["Click it","Ignore it","Share it","Bookmark it"], a:1 },
+  { q:"What is a strong authentication method?", opts:["2FA","Simple password","Open Wi-Fi","Public login"], a:0 },
+  { q:"Which one is NOT malware?", opts:["Trojan","Worm","Antivirus","Spyware"], a:2 },
+  { q:"VPN stands for?", opts:["Virtual Private Network","Verified Personal Network","Visible Public Node","Virtual Privacy Name"], a:0 }
 ];
-let qi = 0; // current question index
 
-// Controls
 document.addEventListener("keydown", e=>{
-  if(e.key==="ArrowLeft"  && dir!=="RIGHT") dir="LEFT";
-  if(e.key==="ArrowUp"    && dir!=="DOWN")  dir="UP";
-  if(e.key==="ArrowRight" && dir!=="LEFT")  dir="RIGHT";
-  if(e.key==="ArrowDown"  && dir!=="UP")    dir="DOWN";
-  if(["ArrowLeft","ArrowUp","ArrowRight","ArrowDown"].includes(e.key)) e.preventDefault();
+  if(e.key==="ArrowLeft" && dir!=="RIGHT") dir="LEFT";
+  if(e.key==="ArrowUp" && dir!=="DOWN") dir="UP";
+  if(e.key==="ArrowRight" && dir!=="LEFT") dir="RIGHT";
+  if(e.key==="ArrowDown" && dir!=="UP") dir="DOWN";
+  e.preventDefault();
 });
 document.getElementById("up").onclick    = ()=>{ if(dir!=="DOWN")  dir="UP"; };
 document.getElementById("down").onclick  = ()=>{ if(dir!=="UP")    dir="DOWN"; };
 document.getElementById("left").onclick  = ()=>{ if(dir!=="RIGHT") dir="LEFT"; };
 document.getElementById("right").onclick = ()=>{ if(dir!=="LEFT")  dir="RIGHT"; };
 
-// Helpers
-function randCell(){
+function randomCell(){
   return {
     x: Math.floor(Math.random()*(canvas.width/box))*box,
     y: Math.floor(Math.random()*(canvas.height/box))*box
   };
 }
-function cellsEqual(a,b){ return a.x===b.x && a.y===b.y; }
-function cellBlocked(p){
-  // avoid spawning on snake or existing foods
-  if (snake.some(s => cellsEqual(s,p))) return true;
-  if (foods.some(f => f && cellsEqual(f,p))) return true;
-  return false;
+function spawnFoods(){
+  foods = [];
+  for (let i=0;i<4;i++){
+    let p = randomCell();
+    foods.push({x:p.x, y:p.y, color:colors[i], idx:i});
+  }
 }
-function spawnFoodForIndex(i){
-  // keep color tied to option index i
-  let p;
-  do { p = randCell(); } while (cellBlocked(p));
-  foods[i] = { x:p.x, y:p.y, color:colors[i], idx:i };
-}
-
-// UI
-function renderQuestion(){
-  const q = questions[qi % questions.length];
-  document.getElementById("question").textContent = q.q;
-
-  const optsDiv = document.getElementById("options");
-  optsDiv.innerHTML = "";
-  q.opts.forEach((text, i)=>{
-    const row = document.createElement("div");
-    row.className = "opt-row";
-    const sw = document.createElement("div");
-    sw.className = "swatch";
-    sw.style.background = colors[i];
-    const t = document.createElement("div");
-    t.className = "opt-text";
-    t.textContent = text;
-    row.appendChild(sw);
-    row.appendChild(t);
-    optsDiv.appendChild(row);
-  });
-}
-
-// Game loop
 function draw(){
-  // background
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  snake.forEach((s,i)=>{ ctx.fillStyle = i===0?"#00e0ff":"#0099aa"; ctx.fillRect(s.x,s.y,box,box); });
+  foods.forEach(f=>{ ctx.fillStyle=f.color; ctx.fillRect(f.x,f.y,box,box); });
 
-  // snake
-  snake.forEach((s, i)=>{
-    ctx.fillStyle = i===0 ? "#00e0ff" : "#0099aa";
-    ctx.fillRect(s.x, s.y, box, box);
-  });
-
-  // foods: draw with their own colors
-  foods.forEach(f=>{
-    ctx.fillStyle = f.color;
-    ctx.fillRect(f.x, f.y, box, box);
-  });
-
-  // move
   let hx=snake[0].x, hy=snake[0].y;
-  if (dir==="LEFT")  hx -= box;
-  if (dir==="RIGHT") hx += box;
-  if (dir==="UP")    hy -= box;
-  if (dir==="DOWN")  hy += box;
+  if(dir==="LEFT") hx-=box;
+  if(dir==="RIGHT") hx+=box;
+  if(dir==="UP") hy-=box;
+  if(dir==="DOWN") hy+=box;
 
   // wrap-around
-  if (hx < 0) hx = canvas.width - box;
-  if (hy < 0) hy = canvas.height - box;
-  if (hx >= canvas.width)  hx = 0;
-  if (hy >= canvas.height) hy = 0;
+  if(hx<0)hx=canvas.width-box;
+  if(hy<0)hy=canvas.height-box;
+  if(hx>=canvas.width)hx=0;
+  if(hy>=canvas.height)hy=0;
 
-  // eat check: which food (if any) is on new head
-  let ateIndex = foods.findIndex(f => f.x===hx && f.y===hy);
-  if (ateIndex > -1){
-    handleAnswer(ateIndex);             // score + feedback
-    spawnFoodForIndex(ateIndex);        // respawn SAME color elsewhere
-  } else {
-    snake.pop();                        // move without growing
-  }
+  let eaten = foods.findIndex(f=>f.x===hx && f.y===hy);
+  if(eaten>-1){
+    handleAnswer(eaten);
+    foods[eaten]=randomCell();
+    foods[eaten].color=colors[eaten];
+  } else snake.pop();
 
-  // self collision
-  const newHead = {x:hx, y:hy};
-  if (snake.some((s,i)=> i && cellsEqual(s,newHead))){
-    clearInterval(loopId);
-    alert("Game Over! Score: " + score);
-    sendScore();
-    return;
-  }
+  const newHead={x:hx,y:hy};
+  if(snake.some((s,i)=>i&&s.x===hx&&s.y===hy)){ clearInterval(gameInterval); gameOver(); }
   snake.unshift(newHead);
-
-  // HUD
-  ctx.fillStyle="#fff";
-  ctx.font="14px Arial";
-  ctx.fillText("Score: " + score, 10, 16);
+  ctx.fillStyle="#fff"; ctx.font="14px Arial"; ctx.fillText("Score: "+score,10,16);
 }
 
-function handleAnswer(colorIdx){
-  const q = questions[qi % questions.length];
-  if (colorIdx === q.a){
-    score += 5;
-    feedback.textContent = "✅ Correct! +5";
-  } else {
-    score = Math.max(0, score - 2);
-    feedback.textContent = "❌ Wrong! -2";
+function renderQuestion(){
+  const q=questions[currentQuestion];
+  document.getElementById("question").textContent=q.q;
+  const opts=document.getElementById("options");
+  opts.innerHTML="";
+  q.opts.forEach((t,i)=>{
+    const row=document.createElement("div");
+    row.className="opt-row";
+    const sw=document.createElement("div");
+    sw.className="swatch"; sw.style.background=colors[i];
+    const tx=document.createElement("div");
+    tx.className="opt-text"; tx.textContent=t;
+    row.appendChild(sw); row.appendChild(tx);
+    opts.appendChild(row);
+  });
+}
+
+function handleAnswer(colorIndex){
+  const q = questions[currentQuestion];
+  if(colorIndex===q.a){
+    score+=5;
+    document.getElementById("feedback").textContent="✅ Correct! +5";
+  }else{
+    score=Math.max(0,score-2);
+    document.getElementById("feedback").textContent="❌ Wrong! -2";
   }
-  qi += 1;
-  renderQuestion(); // refresh options (same colors, next question)
+  currentQuestion++;
+  if(currentQuestion>=questionsPerLevel){
+    endLevel();
+  }else{
+    renderQuestion();
+  }
 }
 
-// send to Sheet
+function endLevel(){
+  clearInterval(gameInterval);
+  document.getElementById("feedback").textContent="🎉 Level 1 Complete! Final Score: "+score;
+  document.getElementById("submitBtn").style.display="inline-block";
+}
+
 function sendScore(){
-  const name  = prompt("Enter your name:");
-  const email = prompt("Enter your email:");
-  const badge = score>=20 ? "Gold" : score>=10 ? "Silver" : "Bronze";
-  fetch(scriptURL, {
+  const name=prompt("Enter your name:");
+  const email=prompt("Enter your email:");
+  const badge=score>=20?"Gold":score>=10?"Silver":"Bronze";
+  fetch(scriptURL,{
     method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ name, email, score, level:"Color-Option", badge })
-  }).catch(()=>{});
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,email,score,level:"Level 1",badge})
+  })
+  .then(()=>alert("✅ Score submitted successfully!"))
+  .catch(()=>alert("⚠️ Failed to submit score."));
 }
 
-// init
-function start(){
-  renderQuestion();
-  // spawn one food per color/option (A–D)
-  foods = new Array(4);
-  for (let i=0;i<4;i++) spawnFoodForIndex(i);
+document.getElementById("submitBtn").onclick=sendScore;
+
+function gameOver(){
+  alert("Game Over! Score: "+score);
+  sendScore();
 }
-start();
-const loopId = setInterval(draw, speed);
+
+function startGame(){
+  spawnFoods();
+  renderQuestion();
+  gameInterval=setInterval(draw,speed);
+}
+startGame();
 </script>
 </body>
 </html>
