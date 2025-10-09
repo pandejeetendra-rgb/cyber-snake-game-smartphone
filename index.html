@@ -6,7 +6,7 @@
 <title>Cyber Security Snake Game – Level 1</title>
 <style>
   body { margin:0; background:#0e0e0e; color:#fff; font-family:Arial,sans-serif; text-align:center; }
-  h1 { margin:12px 0; color:#00e0ff; font-size:20px; }
+  h1 { margin:14px 0; color:#00e0ff; font-size:20px; }
   #gameContainer { display:flex; flex-direction:column; align-items:center; }
   canvas { background:#000; border:2px solid #00e0ff; border-radius:10px; margin-top:8px; touch-action:none; }
   #question { color:#00e0ff; font-size:16px; margin:10px 0 6px; }
@@ -19,24 +19,27 @@
   .row { display:flex; gap:10px; justify-content:center; }
   .btn { width:58px; height:58px; border-radius:10px; border:none; background:#00e0ff; color:#000; font-size:26px; }
   #submitBtn {
-    display:none; margin:8px 0 16px; background:#00ff88; color:#000; border:none;
-    padding:10px 18px; border-radius:8px; font-size:16px; cursor:pointer;
+    display:none; margin:12px 0 20px; background:#00ff88; color:#000; border:none;
+    padding:10px 20px; border-radius:8px; font-size:17px; cursor:pointer;
   }
-  /* Floating leaderboard button */
+  /* Leaderboard fixed at top-right */
   .floating-leaderboard {
-    position:fixed; right:14px; bottom:14px; z-index:50;
-    background:#ffd54f; color:#000; border:none; border-radius:24px;
-    padding:12px 16px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.4);
-    text-decoration:none;
+    position:fixed; top:10px; right:10px; z-index:100;
+    background:#ffd54f; color:#000; border:none; border-radius:20px;
+    padding:10px 14px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.4);
+    text-decoration:none; font-size:14px;
   }
   @media (max-width:600px){
     canvas { width:90vw; height:90vw; }
     .btn { width:56px; height:56px; font-size:26px; }
+    .floating-leaderboard { top:6px; right:6px; font-size:13px; padding:8px 10px; }
   }
 </style>
 </head>
 <body>
   <h1>🐍 Cyber Security Snake Game – Level 1</h1>
+
+  <a class="floating-leaderboard" id="leaderboardBtn" target="_blank" rel="noopener">View Leaderboard 🏆</a>
 
   <div id="gameContainer">
     <canvas id="gameCanvas" width="300" height="300"></canvas>
@@ -57,67 +60,56 @@
     <button id="submitBtn">Submit Score 🏆</button>
   </div>
 
-  <!-- Floating leaderboard -->
-  <a class="floating-leaderboard" id="leaderboardBtn" target="_blank" rel="noopener">View Leaderboard 🏆</a>
-
-  <!-- CORS-proof submission helpers -->
   <iframe name="hidden_iframe" style="display:none"></iframe>
   <form id="scoreForm" method="POST" target="hidden_iframe" style="display:none">
     <input type="hidden" name="name" />
-    <input type="hidden" name="email" />
     <input type="hidden" name="score" />
     <input type="hidden" name="level" />
     <input type="hidden" name="badge" />
   </form>
 
 <script>
-/* ======= CONFIG: put your URLs here ======= */
 const scriptURL = "https://script.google.com/macros/s/AKfycbwyhRoswSaVI7FRiy-miuUuVrlaLitre_EpxmXloe5zMBfQdXFZAh-w5CmPc09LIjsyWQ/exec";
 const leaderboardURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTb9gCePuU5XZNkMwgcitPhLG4BHrSNUbSM24lLMF1UiU84SSLIqlXtIinVYZviBOYx6g3RZEEn__0D/pubhtml";
-
-/* ======= Basic setup ======= */
 document.getElementById("leaderboardBtn").href = leaderboardURL;
 document.getElementById("scoreForm").action = scriptURL;
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const box = 15;                         // grid size
-let snake = [{ x:5*box, y:5*box }];     // start
+const box = 15;
+let snake = [{ x:5*box, y:5*box }];
 let dir = "RIGHT";
 let score = 0;
-let speed = 340;                         // slower for smartphone
-let foods = [];                          // 4 foods (A–D) with fixed colors
-const colors = ["red","yellow","green","blue"]; // option A,B,C,D
+let speed = 340;
+let foods = [];
+const colors = ["red","yellow","green","blue"];
 let loopId = null;
 
 const questionsPerLevel = 5;
-let qIndex = 0;
+let asked = [];
 
-const questions = [
+const allQuestions = [
   { q:"Which is a strong password?", opts:["123456","password","Q#4tY9$2","abcdef"], a:2 },
-  { q:"What is phishing?",          opts:["Fishing","Tricking users","Video chat","Virus"], a:1 },
-  { q:"Firewall protects your?",    opts:["Network","Printer","Battery","Display"], a:0 },
-  { q:"Safe email practice?",       opts:["Click all links","Ignore spam","Share passwords","Open attachments"], a:1 },
-  { q:"Which one is NOT malware?",  opts:["Trojan","Worm","Antivirus","Spyware"], a:2 },
-  { q:"What does 2FA add?",         opts:["Faster Wi-Fi","Extra verification","More storage","More tabs"], a:1 },
-  { q:"HTTPS means…",               opts:["Secure connection","More ads","Free data","Higher speed"], a:0 },
-  { q:"Best place for passwords?",  opts:["Sticky note","Shared doc","Password manager","Browser address bar"], a:2 }
+  { q:"What is phishing?", opts:["Fishing","Tricking users","Video chat","Virus"], a:1 },
+  { q:"Firewall protects your?", opts:["Network","Printer","Battery","Display"], a:0 },
+  { q:"Safe email practice?", opts:["Click all links","Ignore spam","Share passwords","Open attachments"], a:1 },
+  { q:"Which one is NOT malware?", opts:["Trojan","Worm","Antivirus","Spyware"], a:2 },
+  { q:"What does 2FA add?", opts:["Faster Wi-Fi","Extra verification","More storage","More tabs"], a:1 },
+  { q:"HTTPS means…", opts:["Secure connection","More ads","Free data","Higher speed"], a:0 },
+  { q:"Best place for passwords?", opts:["Sticky note","Shared doc","Password manager","Browser address bar"], a:2 }
 ];
 
-/* ======= Controls ======= */
-document.addEventListener("keydown", (e)=>{
-  if(e.key==="ArrowLeft" && dir!=="RIGHT") dir="LEFT";
-  if(e.key==="ArrowUp" && dir!=="DOWN")    dir="UP";
-  if(e.key==="ArrowRight" && dir!=="LEFT") dir="RIGHT";
-  if(e.key==="ArrowDown" && dir!=="UP")    dir="DOWN";
-  if(["ArrowLeft","ArrowUp","ArrowRight","ArrowDown"].includes(e.key)) e.preventDefault();
-});
-document.getElementById("up").onclick    = ()=>{ if(dir!=="DOWN")  dir="UP";   };
-document.getElementById("down").onclick  = ()=>{ if(dir!=="UP")    dir="DOWN"; };
-document.getElementById("left").onclick  = ()=>{ if(dir!=="RIGHT") dir="LEFT"; };
-document.getElementById("right").onclick = ()=>{ if(dir!=="LEFT")  dir="RIGHT"; };
+function getRandomQuestion() {
+  if (asked.length === allQuestions.length) asked = [];
+  let idx;
+  do { idx = Math.floor(Math.random() * allQuestions.length); }
+  while (asked.includes(idx));
+  asked.push(idx);
+  return allQuestions[idx];
+}
 
-/* ======= Helpers ======= */
+let currentQ = getRandomQuestion();
+
 function randCell(){
   return {
     x: Math.floor(Math.random()*(canvas.width/box))*box,
@@ -125,150 +117,138 @@ function randCell(){
   };
 }
 function cellsEqual(a,b){ return a.x===b.x && a.y===b.y; }
-function blocked(p){
-  if (snake.some(s=>cellsEqual(s,p))) return true;
-  if (foods.some(f=>f && cellsEqual(f,p))) return true;
-  return false;
-}
+
 function spawnFoodFor(i){
   let p;
-  do { p = randCell(); } while (blocked(p));
+  do { p = randCell(); } while (snake.some(s=>cellsEqual(s,p)));
   foods[i] = { x:p.x, y:p.y, color:colors[i], idx:i };
 }
 
-/* ======= UI ======= */
 function renderQuestion(){
-  const q = questions[qIndex % questions.length];
+  const q = currentQ;
   document.getElementById("question").textContent = q.q;
-
   const cont = document.getElementById("options");
   cont.innerHTML = "";
-  q.opts.forEach((text, i)=>{
-    const row = document.createElement("div");
-    row.className = "opt-row";
-    const sw = document.createElement("div");
-    sw.className = "swatch";
-    sw.style.background = colors[i];
-    const tx = document.createElement("div");
-    tx.className = "opt-text";
-    tx.textContent = text;
+  q.opts.forEach((text,i)=>{
+    const row=document.createElement("div");
+    row.className="opt-row";
+    const sw=document.createElement("div");
+    sw.className="swatch"; sw.style.background=colors[i];
+    const tx=document.createElement("div");
+    tx.className="opt-text"; tx.textContent=text;
     row.appendChild(sw); row.appendChild(tx);
     cont.appendChild(row);
   });
 }
 
-/* ======= Game loop ======= */
-function draw(){
-  // background
-  ctx.fillStyle="#000";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // snake
-  snake.forEach((s,i)=>{
-    ctx.fillStyle = i===0 ? "#00e0ff" : "#0099aa";
-    ctx.fillRect(s.x, s.y, box, box);
-  });
-
-  // foods
-  foods.forEach(f=>{
-    ctx.fillStyle = f.color;
-    ctx.fillRect(f.x, f.y, box, box);
-  });
-
-  // next head position
-  let hx = snake[0].x, hy = snake[0].y;
-  if (dir==="LEFT")  hx -= box;
-  if (dir==="RIGHT") hx += box;
-  if (dir==="UP")    hy -= box;
-  if (dir==="DOWN")  hy += box;
-
-  // wrap-around walls
-  if (hx < 0) hx = canvas.width - box;
-  if (hy < 0) hy = canvas.height - box;
-  if (hx >= canvas.width)  hx = 0;
-  if (hy >= canvas.height) hy = 0;
-
-  // eat?
-  const eatIdx = foods.findIndex(f => f.x===hx && f.y===hy);
-  if (eatIdx > -1){
-    handleAnswer(eatIdx);
-    spawnFoodFor(eatIdx);    // respawn SAME color elsewhere
-  } else {
-    snake.pop();
-  }
-
-  // self-collision
-  const head = {x:hx, y:hy};
-  if (snake.some((s,i)=> i && cellsEqual(s, head))){
-    stopGame("Game Over! Score: " + score);
-    return;
-  }
-  snake.unshift(head);
-
-  // HUD
-  ctx.fillStyle="#fff";
-  ctx.font="14px Arial";
-  ctx.fillText("Score: " + score, 10, 16);
-}
-
 function handleAnswer(colorIdx){
-  const q = questions[qIndex % questions.length];
-  if (colorIdx === q.a){
+  if (colorIdx===currentQ.a){
     score += 5;
-    document.getElementById("feedback").textContent = "✅ Correct! +5";
+    document.getElementById("feedback").textContent="✅ Correct! +5";
   } else {
-    score = Math.max(0, score - 2);
-    document.getElementById("feedback").textContent = "❌ Wrong! -2";
+    score=Math.max(0,score-2);
+    document.getElementById("feedback").textContent="❌ Wrong! -2";
   }
-  qIndex++;
-  if (qIndex >= questionsPerLevel){
-    stopGame("🎉 Level 1 Complete! Final Score: " + score);
-    document.getElementById("submitBtn").style.display = "inline-block";
+
+  if (asked.length >= questionsPerLevel){
+    stopGame("🎉 Level 1 Complete! Score: "+score);
+    document.getElementById("submitBtn").style.display="inline-block";
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   } else {
+    currentQ=getRandomQuestion();
     renderQuestion();
   }
 }
 
+function draw(){
+  ctx.fillStyle="#000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  snake.forEach((s,i)=>{
+    ctx.fillStyle=i===0?"#00e0ff":"#0099aa";
+    ctx.fillRect(s.x,s.y,box,box);
+  });
+
+  foods.forEach(f=>{
+    ctx.fillStyle=f.color;
+    ctx.fillRect(f.x,f.y,box,box);
+  });
+
+  let hx=snake[0].x, hy=snake[0].y;
+  if(dir==="LEFT") hx-=box;
+  if(dir==="RIGHT") hx+=box;
+  if(dir==="UP") hy-=box;
+  if(dir==="DOWN") hy+=box;
+
+  // wrap walls
+  if(hx<0) hx=canvas.width-box;
+  if(hy<0) hy=canvas.height-box;
+  if(hx>=canvas.width) hx=0;
+  if(hy>=canvas.height) hy=0;
+
+  const eatIdx=foods.findIndex(f=>f.x===hx&&f.y===hy);
+  if(eatIdx>-1){
+    handleAnswer(eatIdx);
+    spawnFoodFor(eatIdx);
+  } else {
+    snake.pop();
+  }
+
+  const head={x:hx,y:hy};
+  if(snake.some((s,i)=>i&&cellsEqual(s,head))){
+    stopGame("Game Over! Score: "+score);
+    return;
+  }
+  snake.unshift(head);
+
+  ctx.fillStyle="#fff";
+  ctx.font="14px Arial";
+  ctx.fillText("Score: "+score,10,16);
+}
+
 function stopGame(msg){
-  if (loopId) clearInterval(loopId);
-  loopId = null;
+  if(loopId) clearInterval(loopId);
+  loopId=null;
   alert(msg);
 }
 
-/* ======= Score submit (CORS-proof) ======= */
 function sendScore(){
-  const name  = prompt("Enter your name:");
-  const email = prompt("Enter your email:");
-  if (!name || !email){ alert("Please enter both name and email."); return; }
+  const name=prompt("Enter your name:");
+  if(!name){ alert("Please enter name."); return; }
+  const badge=score>=20?"Gold":score>=10?"Silver":"Bronze";
 
-  const badge = score >= 20 ? "Gold" : score >= 10 ? "Silver" : "Bronze";
-
-  // 1) POST via hidden form -> iframe (no CORS issues)
-  const form = document.getElementById("scoreForm");
-  form.elements["name"].value  = name;
-  form.elements["email"].value = email;
-  form.elements["score"].value = String(score);
-  form.elements["level"].value = "Level 1";
-  form.elements["badge"].value = badge;
+  const form=document.getElementById("scoreForm");
+  form.elements["name"].value=name;
+  form.elements["score"].value=String(score);
+  form.elements["level"].value="Level 1";
+  form.elements["badge"].value=badge;
   form.submit();
 
-  // 2) Fire a tiny GET beacon as a backup (also no CORS issues)
-  const params = new URLSearchParams({name,email,score:String(score),level:"Level 1",badge});
-  const img = new Image();
-  img.src = `${scriptURL}?${params.toString()}&t=${Date.now()}`;
+  const params=new URLSearchParams({name,score:String(score),level:"Level 1",badge});
+  new Image().src=`${scriptURL}?${params.toString()}&t=${Date.now()}`;
 
   alert("✅ Score submitted. Check the leaderboard.");
 }
 
-document.getElementById("submitBtn").addEventListener("click", sendScore);
+document.getElementById("submitBtn").addEventListener("click",sendScore);
 
-/* ======= Init ======= */
+document.addEventListener("keydown",(e)=>{
+  if(e.key==="ArrowLeft"&&dir!=="RIGHT") dir="LEFT";
+  if(e.key==="ArrowUp"&&dir!=="DOWN") dir="UP";
+  if(e.key==="ArrowRight"&&dir!=="LEFT") dir="RIGHT";
+  if(e.key==="ArrowDown"&&dir!=="UP") dir="DOWN";
+  if(["ArrowLeft","ArrowUp","ArrowRight","ArrowDown"].includes(e.key)) e.preventDefault();
+});
+document.getElementById("up").onclick=()=>{if(dir!=="DOWN") dir="UP";};
+document.getElementById("down").onclick=()=>{if(dir!=="UP") dir="DOWN";};
+document.getElementById("left").onclick=()=>{if(dir!=="RIGHT") dir="LEFT";};
+document.getElementById("right").onclick=()=>{if(dir!=="LEFT") dir="RIGHT";};
+
 function start(){
-  // 4 colored foods (A–D), no overlaps
-  foods = new Array(4);
-  for (let i=0;i<4;i++) spawnFoodFor(i);
+  foods=new Array(4);
+  for(let i=0;i<4;i++) spawnFoodFor(i);
   renderQuestion();
-  loopId = setInterval(draw, speed);
+  loopId=setInterval(draw,speed);
 }
 start();
 </script>
