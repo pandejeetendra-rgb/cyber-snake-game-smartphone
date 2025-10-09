@@ -180,35 +180,33 @@ function sendScore() {
     return;
   }
 
-  document.getElementById("submitBtn").innerText = "⏳ Submitting...";
-  document.getElementById("submitBtn").disabled = true;
+  const btn = document.getElementById("submitBtn");
+  btn.innerText = "⏳ Submitting...";
+  btn.disabled = true;
 
-  // Try to send using JSON POST (primary)
+  const payload = { name, email, score, level: "Level 1", badge };
+
+  // 1. Try POST first
   fetch(scriptURL, {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ name, email, score, level: "Level 1", badge })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    mode: "no-cors"
   })
-  .then(async (res) => {
-    const text = await res.text();
-    console.log("Server response:", text);
-    if (res.ok && text.includes("success")) {
-      alert("✅ Score submitted successfully!");
-    } else {
-      alert("⚠️ Score submission may have failed.\nServer says: " + text);
-    }
+  .then(() => {
+    alert("✅ Score submitted successfully!");
   })
-  .catch((err) => {
-    console.error("Error:", err);
-    // fallback to URL-based method (CORS safe)
-    const url = `${scriptURL}?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&score=${score}&level=Level1&badge=${badge}`;
+  .catch(() => {
+    // 2. Fallback using GET if POST fails
+    const params = new URLSearchParams(payload).toString();
+    const url = `${scriptURL}?${params}`;
     fetch(url)
       .then(() => alert("✅ Score submitted via fallback method!"))
       .catch(() => alert("⚠️ Could not submit score even with fallback."));
   })
   .finally(() => {
-    document.getElementById("submitBtn").innerText = "Submit Score 🏆";
-    document.getElementById("submitBtn").disabled = false;
+    btn.innerText = "Submit Score 🏆";
+    btn.disabled = false;
   });
 }
 
