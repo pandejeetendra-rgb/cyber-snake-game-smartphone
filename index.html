@@ -171,23 +171,24 @@ function endLevel(){
 }
 
 function sendScore(){
-  const name=prompt("Enter your name:");
-  const email=prompt("Enter your email:");
-  const badge=score>=20?"Gold":score>=10?"Silver":"Bronze";
-  fetch(scriptURL,{
-    method:"POST",
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name,email,score,level:"Level 1",badge})
+  const name  = prompt("Enter your name:");
+  const email = prompt("Enter your email:");
+  const badge = score>=20?"Gold":score>=10?"Silver":"Bronze";
+
+  fetch(scriptURL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, score, level: "Level 1", badge })
   })
-  .then(()=>alert("✅ Score submitted successfully!"))
-  .catch(()=>alert("⚠️ Failed to submit score."));
-}
-
-document.getElementById("submitBtn").onclick=sendScore;
-
-function gameOver(){
-  alert("Game Over! Score: "+score);
-  sendScore();
+  .then(res => res.text())
+  .then(text => {
+    console.log(text);
+    alert("✅ Score submitted successfully!");
+  })
+  .catch(err => {
+    console.error(err);
+    alert("⚠️ Failed to submit score. Please try again.");
+  });
 }
 
 function startGame(){
