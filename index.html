@@ -170,26 +170,48 @@ function endLevel(){
   document.getElementById("submitBtn").style.display="inline-block";
 }
 
-function sendScore(){
+function sendScore() {
   const name  = prompt("Enter your name:");
   const email = prompt("Enter your email:");
-  const badge = score>=20?"Gold":score>=10?"Silver":"Bronze";
+  const badge = score >= 20 ? "Gold" : score >= 10 ? "Silver" : "Bronze";
 
+  if (!name || !email) {
+    alert("Please enter both name and email to submit your score.");
+    return;
+  }
+
+  document.getElementById("submitBtn").innerText = "⏳ Submitting...";
+  document.getElementById("submitBtn").disabled = true;
+
+  // Try to send using JSON POST (primary)
   fetch(scriptURL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ name, email, score, level: "Level 1", badge })
   })
-  .then(res => res.text())
-  .then(text => {
-    console.log(text);
-    alert("✅ Score submitted successfully!");
+  .then(async (res) => {
+    const text = await res.text();
+    console.log("Server response:", text);
+    if (res.ok && text.includes("success")) {
+      alert("✅ Score submitted successfully!");
+    } else {
+      alert("⚠️ Score submission may have failed.\nServer says: " + text);
+    }
   })
-  .catch(err => {
-    console.error(err);
-    alert("⚠️ Failed to submit score. Please try again.");
+  .catch((err) => {
+    console.error("Error:", err);
+    // fallback to URL-based method (CORS safe)
+    const url = `${scriptURL}?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&score=${score}&level=Level1&badge=${badge}`;
+    fetch(url)
+      .then(() => alert("✅ Score submitted via fallback method!"))
+      .catch(() => alert("⚠️ Could not submit score even with fallback."));
+  })
+  .finally(() => {
+    document.getElementById("submitBtn").innerText = "Submit Score 🏆";
+    document.getElementById("submitBtn").disabled = false;
   });
 }
+
 
 function startGame(){
   spawnFoods();
