@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Cyber Security Snake Game – Levels 1–3</title>
+<title>Cyber Security Snake Game – GBL Version</title>
 <style>
   body { margin:0; background:#0e0e0e; color:#fff; font-family:Arial,sans-serif; text-align:center; }
   h1 { margin:14px 0; color:#00e0ff; font-size:20px; }
@@ -16,69 +16,24 @@
   .swatch { width:18px; height:18px; border:1px solid #fff; border-radius:3px; flex:0 0 18px; }
   .opt-text { text-align:left; flex:1; }
   #feedback { min-height:20px; margin:4px 0 8px; font-size:14px; }
-  #controls { display:flex; flex-direction:column; align-items:center; gap:6px; margin:6px 0 10px; }
-  .row { display:flex; gap:10px; justify-content:center; }
-  .btn { width:58px; height:58px; border-radius:10px; border:none; background:#00e0ff; color:#000; font-size:26px; }
-  #submitBtn {
-    display:none; margin:12px 0 20px; background:#00ff88; color:#000; border:none;
-    padding:10px 20px; border-radius:8px; font-size:17px; cursor:pointer;
-  }
-  /* Leaderboard pinned top-right */
-  .floating-leaderboard {
-    position:fixed; top:10px; right:10px; z-index:100;
-    background:#ffd54f; color:#000; border:none; border-radius:20px;
-    padding:10px 14px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.4);
-    text-decoration:none; font-size:14px;
-  }
-  @media (max-width:600px){
-    canvas { width:90vw; height:90vw; }
-    .btn { width:56px; height:56px; font-size:26px; }
-    .floating-leaderboard { top:6px; right:6px; font-size:13px; padding:8px 10px; }
-  }
 </style>
 </head>
 <body>
-  <h1>🐍 Cyber Security Snake Game – Levels 1–3</h1>
-
-  <!-- Floating leaderboard button -->
-  <a class="floating-leaderboard" id="leaderboardBtn" target="_blank" rel="noopener">View Leaderboard 🏆</a>
-
+  <h1>🐍 Cyber Security Snake Game – Game-Based Learning</h1>
   <div id="gameContainer">
     <canvas id="gameCanvas" width="300" height="300"></canvas>
-
-    <div id="hud">Level <span id="lv">1</span> • Questions answered: <span id="qdone">0</span>/5 • Score: <span id="sc">0</span></div>
-
+    <div id="hud">Questions answered: <span id="qdone">0</span>/8 • Score: <span id="sc">0</span></div>
     <div id="question"></div>
     <div id="options"></div>
     <div id="feedback"></div>
-
-    <div id="controls">
-      <div class="row"><button class="btn" id="up">⬆️</button></div>
-      <div class="row">
-        <button class="btn" id="left">⬅️</button>
-        <button class="btn" id="down">⬇️</button>
-        <button class="btn" id="right">➡️</button>
-      </div>
-    </div>
-
-    <button id="submitBtn">Submit Score 🏆</button>
   </div>
-
-  <!-- Invisible form + iframe = CORS-proof submission -->
-  <iframe name="hidden_iframe" style="display:none"></iframe>
-  <form id="scoreForm" method="POST" target="hidden_iframe" style="display:none">
-    <input type="hidden" name="name" />
-    <input type="hidden" name="score" />
-    <input type="hidden" name="level" />
-    <input type="hidden" name="badge" />
-  </form>
 
 <script>
 /* =================== CONFIG =================== */
-const scriptURL = "https://script.google.com/macros/s/AKfycbwyhRoswSaVI7FRiy-miuUuVrlaLitre_EpxmXloe5zMBfQdXFZAh-w5CmPc09LIjsyWQ/exec"; // your working /exec URL
-const leaderboardURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTb9gCePuU5XZNkMwgcitPhLG4BHrSNUbSM24lLMF1UiU84SSLIqlXtIinVYZviBOYx6g3RZEEn__0D/pubhtml"; // published sheet
-document.getElementById("leaderboardBtn").href = leaderboardURL;
-document.getElementById("scoreForm").action = scriptURL;
+const formBase = "https://forms.gle/oVm2wcRzVikFBqVV7";
+const params = new URLSearchParams(window.location.search);
+const pid = params.get("pid") || "UOU-GBL-TEST";
+const arm = "GBL";
 
 /* =================== GAME STATE =================== */
 const canvas = document.getElementById("gameCanvas");
@@ -86,61 +41,70 @@ const ctx = canvas.getContext("2d");
 const box = 15;
 let snake = [{ x:5*box, y:5*box }];
 let dir = "RIGHT";
-let queuedDir = "RIGHT"; // avoids missing quick taps
+let queuedDir = "RIGHT";
 let score = 0;
-let foods = [];                    // 4 color options on grid
-const colors = ["red","yellow","green","blue"]; // A,B,C,D
-let level = 1;
-const levelSpeeds = {1:340, 2:280, 3:240}; // ms per move (lower = faster)
-let moveInterval = levelSpeeds[level];
-let acc = 0, lastTs = 0;           // for requestAnimationFrame timing
+let foods = [];
+const colors = ["red","yellow","green","blue"];
+let moveInterval = 300;
+let acc = 0, lastTs = 0;
 let running = true;
 
-const perLevelCount = 5;           // questions per level
-let answeredInLevel = 0;
+let answered = 0;
+const totalQuestions = 8;
 
-/* ===== Questions bank with levels ===== */
-const bank = [
-  // Level 1 (basic)
-  {level:1,q:"Which is a strong password?",opts:["123456","password","Q#4tY9$2","abcdef"],a:2},
-  {level:1,q:"What is phishing?",opts:["Fishing","Tricking users","Video chat","Virus"],a:1},
-  {level:1,q:"Firewall protects your?",opts:["Network","Printer","Battery","Display"],a:0},
-  {level:1,q:"HTTPS means…",opts:["Secure connection","More ads","Free data","Higher speed"],a:0},
-  {level:1,q:"Safe email practice?",opts:["Click all links","Ignore spam","Share passwords","Open attachments"],a:1},
-  {level:1,q:"Best place for passwords?",opts:["Sticky note","Shared doc","Password manager","Browser address bar"],a:2},
-
-  // Level 2 (medium)
-  {level:2,q:"2FA adds…",opts:["Extra verification","Faster Wi-Fi","More storage","More tabs"],a:0},
-  {level:2,q:"Which one is NOT malware?",opts:["Trojan","Worm","Antivirus","Spyware"],a:2},
-  {level:2,q:"Good Wi-Fi practice?",opts:["Open public Wi-Fi","Share password","Use WPA2/WPA3","Turn off encryption"],a:2},
-  {level:2,q:"Suspicious link in email?",opts:["Click it","Report or delete","Forward widely","Ignore security"],a:1},
-  {level:2,q:"What’s a VPN?",opts:["Virtual Private Network","Verified Personal Network","Visible Public Node","Virtual Privacy Name"],a:0},
-
-  // Level 3 (advanced)
-  {level:3,q:"Strong password policy?",opts:["8 chars, no symbols","Use one password everywhere","12+ chars mix types","Write on desk"],a:2},
-  {level:3,q:"Ransomware does…",opts:["Encrypts files for payment","Speeds up PC","Blocks ads","Updates apps"],a:0},
-  {level:3,q:"Social engineering is…",opts:["Hardware attack","Physical theft","Tricking people","Code compilation"],a:2},
-  {level:3,q:"Public charger risk is called…",opts:["Juice jacking","Power boost","Fast charge","Green charge"],a:0},
-  {level:3,q:"Good backup rule?",opts:["1-1-0","3-2-1","0-1-1","2-2-0"],a:1}
+/* ===== Questions (same as Control Group) ===== */
+const questions = [
+  {
+    q: "Which of the following represents the three key principles of cybersecurity?",
+    opts: ["Anonymity, Security, Resilience", "Confidentiality, Integrity, Availability", "Speed, Access, Control", "Detection, Recovery, Response"],
+    a: 1
+  },
+  {
+    q: "Which Indian law primarily deals with cybercrimes?",
+    opts: ["The Evidence Act", "The IT Act 2000", "The Penal Code 1860", "The RTI Act 2005"],
+    a: 1
+  },
+  {
+    q: "Which of these is NOT a goal of data protection?",
+    opts: ["Preventing unauthorized access", "Maintaining confidentiality", "Encouraging data leaks", "Ensuring integrity"],
+    a: 2
+  },
+  {
+    q: "Which protocol indicates a secure website connection?",
+    opts: ["HTTP", "HTTPS", "FTP", "IP"],
+    a: 1
+  },
+  {
+    q: "Social engineering primarily exploits:",
+    opts: ["Software vulnerabilities", "Human psychology", "Hardware failures", "Encryption errors"],
+    a: 1
+  },
+  {
+    q: "Which browser feature helps verify the authenticity of websites?",
+    opts: ["Address bar lock icon", "Bookmarks", "Cookies", "History tab"],
+    a: 0
+  },
+  {
+    q: "Which is a good smartphone security practice?",
+    opts: ["Use public Wi-Fi for banking", "Download apps from unknown sites", "Install updates regularly", "Share passwords via SMS"],
+    a: 2
+  },
+  {
+    q: "Which of these is a secure banking habit?",
+    opts: ["Sharing OTP with friends", "Saving passwords in browser", "Using two-factor authentication", "Clicking email links for login"],
+    a: 2
+  }
 ];
-
-/* ===== Build per-level decks (shuffled, unique per player) ===== */
-function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
-const decks = {
-  1: shuffle(bank.filter(b=>b.level===1).slice()),
-  2: shuffle(bank.filter(b=>b.level===2).slice()),
-  3: shuffle(bank.filter(b=>b.level===3).slice())
-};
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a;}
+shuffle(questions);
 let currentQ = null;
 
 /* =================== UI =================== */
-const $lv   = document.getElementById("lv");
 const $qdone= document.getElementById("qdone");
 const $sc   = document.getElementById("sc");
 
 function updateHUD(){
-  $lv.textContent = String(level);
-  $qdone.textContent = String(answeredInLevel);
+  $qdone.textContent = String(answered);
   $sc.textContent = String(score);
 }
 
@@ -167,175 +131,86 @@ function renderQuestion(){
 function randCell(){ return { x:Math.floor(Math.random()*(canvas.width/box))*box, y:Math.floor(Math.random()*(canvas.height/box))*box }; }
 function equal(a,b){ return a.x===b.x && a.y===b.y; }
 function blocked(p){ return snake.some(s=>equal(s,p)) || foods.some(f=>f&&equal(f,p)); }
+function spawnFoodFor(i){ let p; do{p=randCell();}while(blocked(p)); foods[i]={x:p.x,y:p.y,color:colors[i],idx:i}; }
 
-function spawnFoodFor(i){
-  let p;
-  do { p = randCell(); } while (blocked(p));
-  foods[i] = { x:p.x, y:p.y, color:colors[i], idx:i };
-}
-
-/* =================== Input (fast touch + keys) =================== */
+/* =================== Input =================== */
 function setDirection(newDir){
-  // prevent reversing directly
   if(newDir==="LEFT"  && dir!=="RIGHT") queuedDir="LEFT";
   if(newDir==="RIGHT" && dir!=="LEFT")  queuedDir="RIGHT";
   if(newDir==="UP"    && dir!=="DOWN")  queuedDir="UP";
   if(newDir==="DOWN"  && dir!=="UP")    queuedDir="DOWN";
 }
-
 document.addEventListener("keydown",(e)=>{
-  if(e.key==="ArrowLeft")  setDirection("LEFT");
-  if(e.key==="ArrowRight") setDirection("RIGHT");
-  if(e.key==="ArrowUp")    setDirection("UP");
-  if(e.key==="ArrowDown")  setDirection("DOWN");
-  if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key)) e.preventDefault();
-}, {passive:false});
+  if(e.key==="ArrowLeft")setDirection("LEFT");
+  if(e.key==="ArrowRight")setDirection("RIGHT");
+  if(e.key==="ArrowUp")setDirection("UP");
+  if(e.key==="ArrowDown")setDirection("DOWN");
+});
 
-// Use touchstart for instant response; also mousedown for desktop clicks
-const addInstant = (id, d) => {
-  const el = document.getElementById(id);
-  el.addEventListener("touchstart", (e)=>{ e.preventDefault(); setDirection(d); }, {passive:false});
-  el.addEventListener("mousedown", (e)=>{ e.preventDefault(); setDirection(d); });
-};
-addInstant("up","UP"); addInstant("down","DOWN"); addInstant("left","LEFT"); addInstant("right","RIGHT");
-
-/* =================== Questions / Level logic =================== */
+/* =================== Question logic =================== */
 function nextQuestion(){
-  const deck = decks[level];
-  if(deck.length === 0){ return null; }
-  return deck.shift();
+  if(questions.length===0) return null;
+  return questions.shift();
 }
-
 function handleAnswer(colorIdx){
   if(!currentQ) return;
-  if(colorIdx === currentQ.a){
+  if(colorIdx===currentQ.a){
     score += 5;
     document.getElementById("feedback").textContent = "✅ Correct! +5";
   } else {
     score = Math.max(0, score - 2);
     document.getElementById("feedback").textContent = "❌ Wrong! -2";
   }
-  answeredInLevel++;
+  answered++;
   updateHUD();
 
-  if(answeredInLevel >= perLevelCount){
-    // level complete
-    if(level < 3){
-      level++;
-      moveInterval = levelSpeeds[level];
-      answeredInLevel = 0;
-      document.getElementById("feedback").textContent = "🎯 Level up! Starting Level " + level;
-      currentQ = nextQuestion();
-      renderQuestion();
-    } else {
-      // all levels complete
-      running = false;
-      document.getElementById("submitBtn").style.display="inline-block";
-      alert("🎉 Levels 1–3 complete! Final score: " + score);
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }
+  if(answered >= totalQuestions){
+    running = false;
+    document.getElementById("feedback").textContent = "🎯 All questions completed!";
+    setTimeout(() => {
+      redirectToForm();
+    }, 1500);
   } else {
     currentQ = nextQuestion();
     renderQuestion();
   }
 }
 
-/* =================== Game loop (requestAnimationFrame) =================== */
+/* =================== Game mechanics =================== */
 function step(){
-  // apply queued direction just before moving
   dir = queuedDir;
-
-  // compute next head
-  let hx = snake[0].x, hy = snake[0].y;
-  if(dir==="LEFT")  hx -= box;
-  if(dir==="RIGHT") hx += box;
-  if(dir==="UP")    hy -= box;
-  if(dir==="DOWN")  hy += box;
-
-  // wrap-around
-  if(hx < 0) hx = canvas.width - box;
-  if(hy < 0) hy = canvas.height - box;
-  if(hx >= canvas.width)  hx = 0;
-  if(hy >= canvas.height) hy = 0;
-
-  // eat?
-  const idx = foods.findIndex(f => f.x===hx && f.y===hy);
-  if(idx > -1){
-    handleAnswer(idx);
-    spawnFoodFor(idx); // respawn same color
-  } else {
-    snake.pop();
-  }
-
-  // self-collision
-  const head = {x:hx,y:hy};
-  if(snake.some((s,i)=> i && equal(s, head))){
-    running = false;
-    alert("Game Over! Score: " + score);
-    document.getElementById("submitBtn").style.display="inline-block";
-  } else {
-    snake.unshift(head);
-  }
+  let hx=snake[0].x, hy=snake[0].y;
+  if(dir==="LEFT")hx-=box; if(dir==="RIGHT")hx+=box; if(dir==="UP")hy-=box; if(dir==="DOWN")hy+=box;
+  if(hx<0)hx=canvas.width-box; if(hy<0)hy=canvas.height-box;
+  if(hx>=canvas.width)hx=0; if(hy>=canvas.height)hy=0;
+  const idx=foods.findIndex(f=>f.x===hx&&f.y===hy);
+  if(idx>-1){ handleAnswer(idx); spawnFoodFor(idx); } else { snake.pop(); }
+  const head={x:hx,y:hy};
+  if(snake.some((s,i)=>i&&equal(s,head))){ running=false; document.getElementById("feedback").textContent="💀 Game Over!"; setTimeout(()=>redirectToForm(),1500); }
+  else snake.unshift(head);
 }
-
 function draw(){
-  ctx.fillStyle="#000";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // foods
-  foods.forEach(f => { ctx.fillStyle = f.color; ctx.fillRect(f.x, f.y, box, box); });
-
-  // snake
-  snake.forEach((s,i)=>{
-    ctx.fillStyle = i===0 ? "#00e0ff" : "#0099aa";
-    ctx.fillRect(s.x, s.y, box, box);
-  });
-
-  // HUD in corner as backup
-  ctx.fillStyle="#fff"; ctx.font="14px Arial";
-  ctx.fillText("Score: "+score, 10, 16);
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  foods.forEach(f=>{ctx.fillStyle=f.color; ctx.fillRect(f.x,f.y,box,box);});
+  snake.forEach((s,i)=>{ctx.fillStyle=i===0?"#00e0ff":"#0099aa"; ctx.fillRect(s.x,s.y,box,box);});
+  ctx.fillStyle="#fff"; ctx.font="14px Arial"; ctx.fillText("Score: "+score,10,16);
 }
-
 function loop(ts){
   if(!running){ draw(); return; }
-  if(!lastTs) lastTs = ts;
-  const dt = ts - lastTs; lastTs = ts;
-  acc += dt;
-  // move in discrete steps while rendering every frame
-  if(acc >= moveInterval){ step(); acc = 0; }
-  draw();
-  requestAnimationFrame(loop);
+  if(!lastTs) lastTs=ts; const dt=ts-lastTs; lastTs=ts; acc+=dt;
+  if(acc>=moveInterval){ step(); acc=0; }
+  draw(); requestAnimationFrame(loop);
 }
 
-/* =================== Score submission =================== */
-function sendScore(){
-  const name = prompt("Enter your name:");
-  if(!name){ alert("Please enter a name."); return; }
-  const badge = score>=60 ? "Gold" : score>=30 ? "Silver" : "Bronze";
-
-  // POST via hidden form (CORS-proof)
-  const form = document.getElementById("scoreForm");
-  form.elements["name"].value  = name;
-  form.elements["score"].value = String(score);
-  form.elements["level"].value = "Levels 1–3";
-  form.elements["badge"].value = badge;
-  form.submit();
-
-  // GET beacon backup
-  const params = new URLSearchParams({name,score:String(score),level:"Levels 1–3",badge});
-  new Image().src = `${scriptURL}?${params.toString()}&t=${Date.now()}`;
-
-  alert("✅ Score submitted. Check the leaderboard.");
+/* =================== Redirect =================== */
+function redirectToForm(){
+  const redirectUrl = `${formBase}?usp=pp_url&entry.1614294036=${pid}&entry.686742715=${arm}&entry.1506921454=${score}`;
+  window.location.href = redirectUrl;
 }
-document.getElementById("submitBtn").addEventListener("click", sendScore);
 
 /* =================== Start =================== */
 function start(){
-  // foods
-  foods = new Array(4);
-  for(let i=0;i<4;i++) spawnFoodFor(i);
-
-  // first question of level 1
+  foods = new Array(4); for(let i=0;i<4;i++) spawnFoodFor(i);
   currentQ = nextQuestion();
   renderQuestion();
   updateHUD();
