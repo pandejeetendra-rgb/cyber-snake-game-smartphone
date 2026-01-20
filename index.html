@@ -4,19 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Cyber Security Snake Game – GBL Version</title>
-
 <style>
   :root{
     --bg:#0e0e0e;
-    --panel:#121212;
-    --panel2:#0b0b0b;
+    --accent:#00e0ff;
     --text:#ffffff;
     --muted:#b8faff;
-    --accent:#00e0ff;
+    --panel:#101010;
     --border: rgba(0,224,255,.55);
-    --shadow: 0 14px 35px rgba(0,0,0,.45);
-    --radius: 16px;
-    --ctrlH: 92px;
+    --radius: 12px;
   }
 
   *{ box-sizing:border-box; }
@@ -25,263 +21,112 @@
     background: var(--bg);
     color: var(--text);
     font-family: Arial, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-    overflow: hidden; /* avoid page scroll during play */
+    text-align:center;
+    overflow:hidden; /* keep one-screen layout */
   }
 
-  .app{
+  h1{
+    margin: 10px 0 6px;
+    color: var(--accent);
+    font-size: clamp(16px, 2.4vw, 20px);
+    padding: 0 10px;
+  }
+
+  /* Full-height app column */
+  #gameContainer{
     height: 100dvh;
     display:flex;
     flex-direction:column;
-  }
-
-  .topbar{
-    display:flex;
     align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    padding: 10px 12px;
-    border-bottom: 1px solid rgba(0,224,255,.18);
-    background: rgba(18,18,18,.86);
-    backdrop-filter: blur(8px);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
-  .title{
-    font-size: 16px;
-    color: var(--accent);
-    font-weight: 700;
-    line-height: 1.2;
-    text-align:left;
-  }
-
-  .hud{
-    font-size: 13px;
-    color: var(--muted);
-    text-align:right;
-    white-space:nowrap;
-  }
-
-  .stage{
-    flex:1;
-    min-height:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding: 10px;
-    padding-bottom: calc(var(--ctrlH) + env(safe-area-inset-bottom) + 10px);
-  }
-
+  /* Canvas becomes responsive via JS sizing */
   canvas{
-    width: 100%;
-    height: 100%;
-    max-width: 560px;
-    max-height: 560px;
-    background: #000;
-    border: 2px solid var(--accent);
-    border-radius: 14px;
-    box-shadow: var(--shadow);
-    touch-action: none;
+    background:#000;
+    border:2px solid var(--accent);
+    border-radius:10px;
+    touch-action:none;
+    display:block;
   }
 
-  /* Controls: sticky bottom bar */
-  .controls{
-    position: fixed;
-    left:0; right:0; bottom:0;
-    height: var(--ctrlH);
-    padding: 10px 12px;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom));
-    background: rgba(18,18,18,.92);
-    border-top: 1px solid rgba(0,224,255,.18);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap: 10px;
+  #hud{
+    margin-top: 6px;
+    font-size: clamp(12px, 2vw, 14px);
+    color: var(--muted);
+    padding: 0 10px;
   }
 
-  .ctrl{
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    border: 1px solid rgba(0,224,255,.35);
-    background: #0f0f0f;
-    color: #fff;
-    font-size: 20px;
-    box-shadow: 0 10px 22px rgba(0,0,0,.35);
-    -webkit-tap-highlight-color: transparent;
+  #question{
+    color: var(--accent);
+    font-size: clamp(14px, 2.2vw, 16px);
+    margin: 10px 0 6px;
+    min-height: 22px;
+    padding: 0 12px;
+    line-height: 1.25;
   }
-  .ctrl:active{ transform: translateY(1px); }
 
-  .ctrlMid{
+  /* Options panel stays within screen */
+  #options{
     display:flex;
     flex-direction:column;
     gap:8px;
-    align-items:center;
-  }
-  .ctrlRow{ display:flex; gap:8px; }
-
-  /* MCQ overlay */
-  .overlay{
-    position: fixed;
-    inset: 0;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    padding: 14px;
-    background: rgba(0,0,0,.55);
-  }
-  .overlay.show{ display:flex; }
-
-  .card{
-    width: min(720px, 100%);
-    max-height: calc(100dvh - 28px - env(safe-area-inset-bottom));
-    background: #101010;
-    border: 1px solid rgba(0,224,255,.25);
-    border-radius: 18px;
-    box-shadow: var(--shadow);
-    overflow:hidden;
-    display:flex;
-    flex-direction:column;
-  }
-
-  .cardHeader{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding: 12px 14px;
-    border-bottom: 1px solid rgba(0,224,255,.18);
-  }
-  .cardTitle{
-    color: var(--accent);
-    font-weight: 700;
-    font-size: 15px;
-  }
-  .closeBtn{
-    width: 40px; height: 40px;
+    width: min(92vw, 440px);
+    margin: 0 auto 8px;
+    padding: 8px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(0,224,255,.18);
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,.15);
-    background: #0b0b0b;
-    color: #fff;
-    font-size: 18px;
-  }
 
-  .cardBody{
-    padding: 14px;
+    /* IMPORTANT: keep options from pushing offscreen */
+    max-height: 30dvh;
     overflow:auto;
     -webkit-overflow-scrolling: touch;
   }
 
-  .qText{
-    font-size: 16px;
-    line-height: 1.35;
-    margin-bottom: 12px;
-  }
-
-  .options{
-    display:grid;
-    gap:10px;
-  }
-
-  .optBtn{
+  .opt-row{
     display:flex;
     align-items:center;
     gap:10px;
-    padding: 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(0,224,255,.35);
-    background: #121212;
-    color: #fff;
-    text-align:left;
-    font-size: 15px;
-    cursor:pointer;
+    padding:10px 10px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#121212;
+    font-size: clamp(13px, 2.1vw, 15px);
   }
-  .optBtn:active{ transform: translateY(1px); }
 
   .swatch{
-    width:18px;
-    height:18px;
-    border-radius: 4px;
-    border: 1px solid rgba(255,255,255,.75);
+    width:18px; height:18px;
+    border:1px solid #fff;
+    border-radius:4px;
     flex:0 0 18px;
   }
 
-  .feedback{
-    margin-top: 12px;
-    min-height: 20px;
-    color: var(--muted);
-    font-size: 14px;
+  .opt-text{
+    text-align:left;
+    flex:1;
   }
 
-  .cardFooter{
-    display:flex;
-    gap:10px;
-    justify-content:flex-end;
-    padding: 12px 14px;
-    border-top: 1px solid rgba(0,224,255,.18);
-  }
-
-  .btn{
-    height: 44px;
-    padding: 0 14px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: #0b0b0b;
-    color:#fff;
-    font-size: 15px;
-  }
-  .btnPrimary{
-    background: #2563eb;
-    border-color: transparent;
+  #feedback{
+    min-height: 18px;
+    margin: 4px 0 10px;
+    font-size: clamp(12px, 2vw, 14px);
+    padding: 0 10px;
   }
 </style>
 </head>
 
 <body>
-<div class="app">
+  <div id="gameContainer">
+    <h1>🐍 Cyber Security Snake Game – Game-Based Learning</h1>
 
-  <header class="topbar">
-    <div class="title">🐍 Cyber Security Snake (GBL)</div>
-    <div class="hud">
-      Answered: <span id="qdone">0</span>/8<br/>
-      Score: <span id="sc">0</span>
-    </div>
-  </header>
-
-  <main class="stage">
     <canvas id="gameCanvas"></canvas>
-  </main>
 
-  <nav class="controls" aria-label="Game controls">
-    <button id="leftBtn" class="ctrl" type="button">◀</button>
-
-    <div class="ctrlMid">
-      <button id="upBtn" class="ctrl" type="button">▲</button>
-      <div class="ctrlRow">
-        <button id="downBtn" class="ctrl" type="button">▼</button>
-        <button id="rightBtn" class="ctrl" type="button">▶</button>
-      </div>
-    </div>
-
-    <button id="pauseBtn" class="ctrl" type="button">⏸</button>
-  </nav>
-
-</div>
-
-<!-- MCQ Overlay -->
-<div class="overlay" id="mcqOverlay" aria-hidden="true">
-  <div class="card" role="dialog" aria-modal="true">
-    <div class="cardHeader">
-      <div class="cardTitle">Quick Check</div>
-      <button id="closeMcq" class="closeBtn" type="button">✕</button>
-    </div>
-    <div class="cardBody">
-      <div id="question" class="qText"></div>
-      <div id="options" class="options"></div>
-      <div id="feedback" class="feedback"></div>
-    </div>
-    <div class="cardFooter">
-      <button id="continueBtn" class="btn btnPrimary" type="button" style="display:none;">Continue</button>
-    </div>
+    <div id="hud">Questions answered: <span id="qdone">0</span>/8 • Score: <span id="sc">0</span></div>
+    <div id="question"></div>
+    <div id="options"></div>
+    <div id="feedback"></div>
   </div>
-</div>
 
 <script>
 /* =================== CONFIG =================== */
@@ -290,52 +135,22 @@ const params = new URLSearchParams(window.location.search);
 const pid = params.get("pid") || "UOU-GBL-TEST";
 const arm = "GBL";
 
-/* =================== CANVAS FIT (mobile-safe) =================== */
+/* =================== GAME STATE =================== */
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-function fitCanvas(){
-  const stage = document.querySelector(".stage");
-  const rect = stage.getBoundingClientRect();
-  const size = Math.floor(Math.min(rect.width, rect.height));
+/* Keep your original grid cell size */
+const box = 15;
 
-  canvas.style.width = size + "px";
-  canvas.style.height = size + "px";
-
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  canvas.width = Math.floor(size * dpr);
-  canvas.height = Math.floor(size * dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-}
-window.addEventListener("resize", fitCanvas, {passive:true});
-window.addEventListener("orientationchange", fitCanvas, {passive:true});
-fitCanvas();
-
-/* =================== GAME GRID =================== */
-/* box size tuned for mobile. We keep it constant in CSS pixels. */
-const box = 16;
-function gridW(){ return Math.floor((canvas.clientWidth || 300) / box); }
-function gridH(){ return Math.floor((canvas.clientHeight || 300) / box); }
-function clampToGrid(){
-  // ensure canvas dimension in CSS pixels is multiple of box for neat grid
-  const cssW = Math.floor(parseFloat(getComputedStyle(canvas).width));
-  const cssH = Math.floor(parseFloat(getComputedStyle(canvas).height));
-  // nothing fatal if not multiple; we just use floor in randCell()
-  return { cssW, cssH };
-}
-
-/* =================== GAME STATE =================== */
 let snake = [{ x:5*box, y:5*box }];
 let dir = "RIGHT";
 let queuedDir = "RIGHT";
 let score = 0;
 let foods = [];
 const colors = ["red","yellow","green","blue"];
-let moveInterval = 240;
+let moveInterval = 300;
 let acc = 0, lastTs = 0;
 let running = true;
-let pausedForMcq = false;
-let pausedByUser = false;
 
 let answered = 0;
 const totalQuestions = 8;
@@ -370,86 +185,98 @@ function shuffle(a){
 shuffle(questions);
 let currentQ = null;
 
+/* =================== RESPONSIVE CANVAS SIZING ===================
+   Goal: keep canvas + HUD + MCQ on the SAME screen.
+   We measure the non-canvas content height and give the remainder to the canvas.
+*/
+function resizeCanvasToFit(){
+  const container = document.getElementById("gameContainer");
+  const h1 = container.querySelector("h1");
+  const hud = document.getElementById("hud");
+  const q  = document.getElementById("question");
+  const opt= document.getElementById("options");
+  const fb = document.getElementById("feedback");
+
+  const vh = Math.floor(window.visualViewport ? window.visualViewport.height : window.innerHeight);
+  const containerPadding = 8; // small breathing space
+
+  const used =
+    h1.getBoundingClientRect().height +
+    hud.getBoundingClientRect().height +
+    q.getBoundingClientRect().height +
+    opt.getBoundingClientRect().height +
+    fb.getBoundingClientRect().height +
+    containerPadding + 16;
+
+  const available = Math.max(180, vh - used);
+
+  // Make it square but never exceed container width
+  const maxW = Math.floor(Math.min(window.innerWidth, 560) - 24);
+  let size = Math.floor(Math.min(maxW, available));
+
+  // Snap to grid multiple of box so food aligns perfectly
+  size = Math.max(box * 10, Math.floor(size / box) * box);
+
+  canvas.width = size;
+  canvas.height = size;
+  canvas.style.width = size + "px";
+  canvas.style.height = size + "px";
+}
+
+window.addEventListener("resize", ()=>{ resizeCanvasToFit(); }, {passive:true});
+window.addEventListener("orientationchange", ()=>{ setTimeout(resizeCanvasToFit, 50); }, {passive:true});
+
 /* =================== UI =================== */
 const $qdone= document.getElementById("qdone");
 const $sc   = document.getElementById("sc");
-const overlay = document.getElementById("mcqOverlay");
-const qDiv = document.getElementById("question");
-const optsDiv = document.getElementById("options");
-const fb = document.getElementById("feedback");
-const continueBtn = document.getElementById("continueBtn");
 
 function updateHUD(){
   $qdone.textContent = String(answered);
   $sc.textContent = String(score);
 }
 
-function openMcq(){
-  pausedForMcq = true;
-  overlay.classList.add("show");
-  overlay.setAttribute("aria-hidden","false");
-  continueBtn.style.display = "none";
-}
-
-function closeMcq(){
-  overlay.classList.remove("show");
-  overlay.setAttribute("aria-hidden","true");
-  pausedForMcq = false;
-  fb.textContent = "";
-}
-
-document.getElementById("closeMcq").addEventListener("click", ()=>{
-  // keep it strict: if MCQ is open, force an answer before continuing
-  // so just ignore close until after feedback is shown
-});
-
-continueBtn.addEventListener("click", ()=>{
-  closeMcq();
-});
-
 function renderQuestion(){
   const q = currentQ;
+  const qDiv = document.getElementById("question");
+  const opts = document.getElementById("options");
   qDiv.textContent = q ? q.q : "";
-  optsDiv.innerHTML = "";
-  fb.textContent = "";
-  continueBtn.style.display = "none";
-
+  opts.innerHTML = "";
   if(!q) return;
 
   q.opts.forEach((text,i)=>{
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "optBtn";
-    btn.setAttribute("data-idx", String(i));
+    const row=document.createElement("div");
+    row.className="opt-row";
 
-    const sw = document.createElement("div");
-    sw.className = "swatch";
-    sw.style.background = colors[i];
+    const sw=document.createElement("div");
+    sw.className="swatch";
+    sw.style.background=colors[i];
 
-    const tx = document.createElement("div");
-    tx.textContent = text;
+    const tx=document.createElement("div");
+    tx.className="opt-text";
+    tx.textContent=text;
 
-    btn.appendChild(sw);
-    btn.appendChild(tx);
-
-    btn.addEventListener("click", ()=> handleAnswer(i), { once:true });
-    optsDiv.appendChild(btn);
+    row.appendChild(sw);
+    row.appendChild(tx);
+    opts.appendChild(row);
   });
+
+  // After rendering MCQ, re-fit canvas so everything stays on-screen
+  resizeCanvasToFit();
 }
 
 /* =================== Food & movement =================== */
 function randCell(){
-  const { cssW, cssH } = clampToGrid();
-  const cols = Math.max(10, Math.floor(cssW / box));
-  const rows = Math.max(10, Math.floor(cssH / box));
-  return { x: Math.floor(Math.random()*cols)*box, y: Math.floor(Math.random()*rows)*box };
+  return {
+    x: Math.floor(Math.random()*(canvas.width/box))*box,
+    y: Math.floor(Math.random()*(canvas.height/box))*box
+  };
 }
 function equal(a,b){ return a.x===b.x && a.y===b.y; }
 function blocked(p){ return snake.some(s=>equal(s,p)) || foods.some(f=>f&&equal(f,p)); }
 function spawnFoodFor(i){
   let p;
-  do{ p = randCell(); } while(blocked(p));
-  foods[i] = { x:p.x, y:p.y, color:colors[i], idx:i };
+  do{ p=randCell(); }while(blocked(p));
+  foods[i]={x:p.x,y:p.y,color:colors[i],idx:i};
 }
 
 /* =================== Input =================== */
@@ -459,7 +286,6 @@ function setDirection(newDir){
   if(newDir==="UP"    && dir!=="DOWN")  queuedDir="UP";
   if(newDir==="DOWN"  && dir!=="UP")    queuedDir="DOWN";
 }
-
 document.addEventListener("keydown",(e)=>{
   if(e.key==="ArrowLeft")setDirection("LEFT");
   if(e.key==="ArrowRight")setDirection("RIGHT");
@@ -467,160 +293,97 @@ document.addEventListener("keydown",(e)=>{
   if(e.key==="ArrowDown")setDirection("DOWN");
 });
 
-function bindHold(btn, dirName){
-  const el = document.getElementById(btn);
-  const down = (ev)=>{ ev.preventDefault(); setDirection(dirName); };
-  el.addEventListener("touchstart", down, {passive:false});
-  el.addEventListener("mousedown", down);
-}
-bindHold("leftBtn","LEFT");
-bindHold("rightBtn","RIGHT");
-bindHold("upBtn","UP");
-bindHold("downBtn","DOWN");
-
-document.getElementById("pauseBtn").addEventListener("click", ()=>{
-  pausedByUser = !pausedByUser;
-});
-
 /* =================== Question logic =================== */
 function nextQuestion(){
   if(questions.length===0) return null;
   return questions.shift();
 }
-
 function handleAnswer(colorIdx){
   if(!currentQ) return;
 
-  // disable remaining option clicks immediately
-  [...optsDiv.querySelectorAll(".optBtn")].forEach(b=> b.disabled = true);
-
   if(colorIdx===currentQ.a){
     score += 5;
-    fb.textContent = "✅ Correct! +5";
+    document.getElementById("feedback").textContent = "✅ Correct! +5";
   } else {
     score = Math.max(0, score - 2);
-    fb.textContent = "❌ Wrong! -2";
+    document.getElementById("feedback").textContent = "❌ Wrong! -2";
   }
+
   answered++;
   updateHUD();
 
   if(answered >= totalQuestions){
     running = false;
-    fb.textContent = "🎯 All questions completed!";
-    continueBtn.style.display = "inline-block";
-    setTimeout(() => redirectToForm(), 1200);
-    return;
-  }
-
-  // prepare next question, but let learner read feedback first
-  continueBtn.style.display = "inline-block";
-  continueBtn.onclick = ()=>{
+    document.getElementById("feedback").textContent = "🎯 All questions completed!";
+    setTimeout(() => redirectToForm(), 1500);
+  } else {
     currentQ = nextQuestion();
     renderQuestion();
-    closeMcq();
-  };
+  }
 }
 
 /* =================== Game mechanics =================== */
-function wrap(val, max){ return (val < 0) ? (max - box) : (val >= max ? 0 : val); }
-
 function step(){
   dir = queuedDir;
 
-  let hx = snake[0].x;
-  let hy = snake[0].y;
+  let hx=snake[0].x, hy=snake[0].y;
+  if(dir==="LEFT")hx-=box; if(dir==="RIGHT")hx+=box;
+  if(dir==="UP")hy-=box;   if(dir==="DOWN")hy+=box;
 
-  if(dir==="LEFT")  hx -= box;
-  if(dir==="RIGHT") hx += box;
-  if(dir==="UP")    hy -= box;
-  if(dir==="DOWN")  hy += box;
+  if(hx<0)hx=canvas.width-box; if(hy<0)hy=canvas.height-box;
+  if(hx>=canvas.width)hx=0;    if(hy>=canvas.height)hy=0;
 
-  const { cssW, cssH } = clampToGrid();
-  hx = wrap(hx, cssW);
-  hy = wrap(hy, cssH);
+  const idx=foods.findIndex(f=>f.x===hx&&f.y===hy);
 
-  const idx = foods.findIndex(f => f && f.x===hx && f.y===hy);
-
-  if(idx > -1){
-    // Eat food -> open MCQ overlay and pause
-    openMcq();
-    handleFoodHit(idx);
+  if(idx>-1){
+    // Answer happens INSIDE GAME by eating correct color
+    handleAnswer(idx);
+    spawnFoodFor(idx);
   } else {
     snake.pop();
   }
 
-  const head = { x:hx, y:hy };
+  const head={x:hx,y:hy};
 
-  if(snake.some((s,i)=> i && equal(s, head))){
-    running = false;
-    // show MCQ overlay as a feedback panel on game over
-    openMcq();
-    qDiv.textContent = "💀 Game Over!";
-    optsDiv.innerHTML = "";
-    fb.textContent = "You can continue to submit your score.";
-    continueBtn.style.display = "inline-block";
-    continueBtn.onclick = ()=> redirectToForm();
-    return;
+  if(snake.some((s,i)=>i&&equal(s,head))){
+    running=false;
+    document.getElementById("feedback").textContent="💀 Game Over!";
+    setTimeout(()=>redirectToForm(),1500);
+  } else {
+    snake.unshift(head);
   }
-
-  snake.unshift(head);
-}
-
-function handleFoodHit(foodIdx){
-  // set currentQ only when food is eaten
-  if(!currentQ) currentQ = nextQuestion();
-  renderQuestion();
-
-  // immediately respawn that food so next time it exists
-  spawnFoodFor(foodIdx);
 }
 
 function draw(){
-  const { cssW, cssH } = clampToGrid();
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0,0,cssW,cssH);
+  ctx.fillStyle="#000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
   foods.forEach(f=>{
-    if(!f) return;
-    ctx.fillStyle = f.color;
-    ctx.fillRect(f.x, f.y, box, box);
+    ctx.fillStyle=f.color;
+    ctx.fillRect(f.x,f.y,box,box);
   });
 
   snake.forEach((s,i)=>{
-    ctx.fillStyle = (i===0) ? "#00e0ff" : "#0099aa";
-    ctx.fillRect(s.x, s.y, box, box);
+    ctx.fillStyle=i===0?"#00e0ff":"#0099aa";
+    ctx.fillRect(s.x,s.y,box,box);
   });
 
-  ctx.fillStyle = "#fff";
-  ctx.font = "14px Arial";
-  ctx.fillText("Score: " + score, 10, 16);
-
-  if(pausedByUser){
-    ctx.fillStyle = "rgba(0,0,0,.55)";
-    ctx.fillRect(0,0,cssW,cssH);
-    ctx.fillStyle = "#fff";
-    ctx.font = "18px Arial";
-    ctx.fillText("Paused", 12, 36);
-  }
+  ctx.fillStyle="#fff";
+  ctx.font="14px Arial";
+  ctx.fillText("Score: "+score,10,16);
 }
 
 function loop(ts){
-  if(!running){
-    draw();
-    return;
-  }
+  if(!running){ draw(); return; }
 
-  if(!lastTs) lastTs = ts;
-  const dt = ts - lastTs;
-  lastTs = ts;
+  if(!lastTs) lastTs=ts;
+  const dt=ts-lastTs;
+  lastTs=ts;
+  acc+=dt;
 
-  const paused = pausedForMcq || pausedByUser;
-  if(!paused){
-    acc += dt;
-    if(acc >= moveInterval){
-      step();
-      acc = 0;
-    }
+  if(acc>=moveInterval){
+    step();
+    acc=0;
   }
 
   draw();
@@ -630,18 +393,20 @@ function loop(ts){
 /* =================== Redirect =================== */
 function redirectToForm(){
   const redirectUrl =
-    `${formBase}?usp=pp_url&entry.1614294036=${encodeURIComponent(pid)}` +
-    `&entry.686742715=${encodeURIComponent(arm)}` +
+    `${formBase}?usp=pp_url&entry.1614294036=${encodeURIComponent(pid)}`+
+    `&entry.686742715=${encodeURIComponent(arm)}`+
     `&entry.1506921454=${encodeURIComponent(score)}`;
   window.location.href = redirectUrl;
 }
 
 /* =================== Start =================== */
 function start(){
+  resizeCanvasToFit();
   foods = new Array(4);
   for(let i=0;i<4;i++) spawnFoodFor(i);
 
-  currentQ = nextQuestion(); // preload first
+  currentQ = nextQuestion();
+  renderQuestion();
   updateHUD();
   requestAnimationFrame(loop);
 }
