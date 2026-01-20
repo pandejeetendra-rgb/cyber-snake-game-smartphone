@@ -10,9 +10,10 @@
     --accent:#00e0ff;
     --text:#ffffff;
     --muted:#b8faff;
-    --panel:#101010;
     --border: rgba(0,224,255,.55);
+    --panel: rgba(255,255,255,.04);
     --radius: 12px;
+    --ctrlH: 86px;
   }
 
   *{ box-sizing:border-box; }
@@ -22,17 +23,9 @@
     color: var(--text);
     font-family: Arial, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     text-align:center;
-    overflow:hidden; /* keep one-screen layout */
+    overflow:hidden;
   }
 
-  h1{
-    margin: 10px 0 6px;
-    color: var(--accent);
-    font-size: clamp(16px, 2.4vw, 20px);
-    padding: 0 10px;
-  }
-
-  /* Full-height app column */
   #gameContainer{
     height: 100dvh;
     display:flex;
@@ -41,7 +34,14 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  /* Canvas becomes responsive via JS sizing */
+  h1{
+    margin: 10px 0 6px;
+    color: var(--accent);
+    font-size: clamp(16px, 2.4vw, 20px);
+    padding: 0 10px;
+    line-height: 1.2;
+  }
+
   canvas{
     background:#000;
     border:2px solid var(--accent);
@@ -66,7 +66,6 @@
     line-height: 1.25;
   }
 
-  /* Options panel stays within screen */
   #options{
     display:flex;
     flex-direction:column;
@@ -74,12 +73,12 @@
     width: min(92vw, 440px);
     margin: 0 auto 8px;
     padding: 8px;
-    background: rgba(255,255,255,.04);
+    background: var(--panel);
     border: 1px solid rgba(0,224,255,.18);
     border-radius: 12px;
 
-    /* IMPORTANT: keep options from pushing offscreen */
-    max-height: 30dvh;
+    /* internal scroll so page never scrolls */
+    max-height: 28dvh;
     overflow:auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -113,19 +112,81 @@
     font-size: clamp(12px, 2vw, 14px);
     padding: 0 10px;
   }
+
+  /* Mobile Arrow Controls */
+  #mobileControls{
+    position: fixed;
+    left:0;
+    right:0;
+    bottom: 0;
+    height: calc(var(--ctrlH) + env(safe-area-inset-bottom));
+    padding: 10px 12px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap: 14px;
+    background: rgba(14,14,14,.92);
+    border-top: 1px solid rgba(0,224,255,.22);
+  }
+
+  #mobileControls button{
+    width: 54px;
+    height: 54px;
+    font-size: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,224,255,.45);
+    background: #111;
+    color: #fff;
+    box-shadow: 0 10px 22px rgba(0,0,0,.35);
+    -webkit-tap-highlight-color: transparent;
+  }
+  #mobileControls button:active{ transform: translateY(1px); }
+
+  #mobileControls .mid{
+    display:flex;
+    flex-direction:column;
+    gap: 8px;
+    align-items:center;
+  }
+  #mobileControls .row{
+    display:flex;
+    gap: 8px;
+    justify-content:center;
+  }
+
+  /* Hide mobile arrows on desktop devices */
+  @media (hover: hover) and (pointer: fine){
+    #mobileControls{ display:none; }
+  }
 </style>
 </head>
 
 <body>
   <div id="gameContainer">
     <h1>🐍 Cyber Security Snake Game – Game-Based Learning</h1>
-
     <canvas id="gameCanvas"></canvas>
 
-    <div id="hud">Questions answered: <span id="qdone">0</span>/8 • Score: <span id="sc">0</span></div>
+    <div id="hud">
+      Questions answered: <span id="qdone">0</span>/<span id="qtotal">0</span> •
+      Score: <span id="sc">0</span>
+    </div>
+
     <div id="question"></div>
     <div id="options"></div>
     <div id="feedback"></div>
+  </div>
+
+  <!-- Mobile Arrow Controls -->
+  <div id="mobileControls" aria-label="Snake controls">
+    <button type="button" data-dir="LEFT">◀</button>
+    <div class="mid">
+      <button type="button" data-dir="UP">▲</button>
+      <div class="row">
+        <button type="button" data-dir="DOWN">▼</button>
+        <button type="button" data-dir="RIGHT">▶</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -135,11 +196,98 @@ const params = new URLSearchParams(window.location.search);
 const pid = params.get("pid") || "UOU-GBL-TEST";
 const arm = "GBL";
 
+/* =================== QUESTIONS (FULL BANK) =================== */
+/* NOTE: This is the complete embedded bank from your message. */
+const QUESTION_BANK = [
+  {
+    q: "Which of the following represents the three key principles of cybersecurity?",
+    opts: [
+      "Anonymity, Security, Resilience",
+      "Confidentiality, Integrity, Availability",
+      "Speed, Access, Control",
+      "Detection, Recovery, Response"
+    ],
+    a: 1
+  },
+  {
+    q: "Which Indian law primarily deals with cybercrimes?",
+    opts: [
+      "The Evidence Act",
+      "The IT Act 2000",
+      "The Penal Code 1860",
+      "The RTI Act 2005"
+    ],
+    a: 1
+  },
+  {
+    q: "Which of these is NOT a goal of data protection?",
+    opts: [
+      "Preventing unauthorized access",
+      "Maintaining confidentiality",
+      "Encouraging data leaks",
+      "Ensuring integrity"
+    ],
+    a: 2
+  },
+  {
+    q: "Which protocol indicates a secure website connection?",
+    opts: ["HTTP", "HTTPS", "FTP", "IP"],
+    a: 1
+  },
+  {
+    q: "Social engineering primarily exploits:",
+    opts: [
+      "Software vulnerabilities",
+      "Human psychology",
+      "Hardware failures",
+      "Encryption errors"
+    ],
+    a: 1
+  },
+  {
+    q: "Which browser feature helps verify the authenticity of websites?",
+    opts: [
+      "Address bar lock icon",
+      "Bookmarks",
+      "Cookies",
+      "History tab"
+    ],
+    a: 0
+  },
+  {
+    q: "Which is a good smartphone security practice?",
+    opts: [
+      "Use public Wi-Fi for banking",
+      "Download apps from unknown sites",
+      "Install updates regularly",
+      "Share passwords via SMS"
+    ],
+    a: 2
+  },
+  {
+    q: "Which of these is a secure banking habit?",
+    opts: [
+      "Sharing OTP with friends",
+      "Saving passwords in browser",
+      "Using two-factor authentication",
+      "Clicking email links for login"
+    ],
+    a: 2
+  }
+];
+
+function shuffleCopy(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
 /* =================== GAME STATE =================== */
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-
-/* Keep your original grid cell size */
 const box = 15;
 
 let snake = [{ x:5*box, y:5*box }];
@@ -153,42 +301,58 @@ let acc = 0, lastTs = 0;
 let running = true;
 
 let answered = 0;
-const totalQuestions = 8;
 
-/* ===== Questions (same as Control Group) ===== */
-const questions = [
-  { q:"Which of the following represents the three key principles of cybersecurity?",
-    opts:["Anonymity, Security, Resilience","Confidentiality, Integrity, Availability","Speed, Access, Control","Detection, Recovery, Response"], a:1 },
-  { q:"Which Indian law primarily deals with cybercrimes?",
-    opts:["The Evidence Act","The IT Act 2000","The Penal Code 1860","The RTI Act 2005"], a:1 },
-  { q:"Which of these is NOT a goal of data protection?",
-    opts:["Preventing unauthorized access","Maintaining confidentiality","Encouraging data leaks","Ensuring integrity"], a:2 },
-  { q:"Which protocol indicates a secure website connection?",
-    opts:["HTTP","HTTPS","FTP","IP"], a:1 },
-  { q:"Social engineering primarily exploits:",
-    opts:["Software vulnerabilities","Human psychology","Hardware failures","Encryption errors"], a:1 },
-  { q:"Which browser feature helps verify the authenticity of websites?",
-    opts:["Address bar lock icon","Bookmarks","Cookies","History tab"], a:0 },
-  { q:"Which is a good smartphone security practice?",
-    opts:["Use public Wi-Fi for banking","Download apps from unknown sites","Install updates regularly","Share passwords via SMS"], a:2 },
-  { q:"Which of these is a secure banking habit?",
-    opts:["Sharing OTP with friends","Saving passwords in browser","Using two-factor authentication","Clicking email links for login"], a:2 }
-];
-
-function shuffle(a){
-  for(let i=a.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [a[i],a[j]]=[a[j],a[i]];
-  }
-  return a;
-}
-shuffle(questions);
+/* Use ALL questions in this run */
+const questions = shuffleCopy(QUESTION_BANK);
+const totalQuestions = questions.length;
+let qIndex = 0;
 let currentQ = null;
 
-/* =================== RESPONSIVE CANVAS SIZING ===================
-   Goal: keep canvas + HUD + MCQ on the SAME screen.
-   We measure the non-canvas content height and give the remainder to the canvas.
-*/
+/* =================== UI =================== */
+const $qdone  = document.getElementById("qdone");
+const $qtotal = document.getElementById("qtotal");
+const $sc     = document.getElementById("sc");
+
+function updateHUD(){
+  $qdone.textContent = String(answered);
+  $qtotal.textContent = String(totalQuestions);
+  $sc.textContent = String(score);
+}
+
+function renderQuestion(){
+  const qDiv = document.getElementById("question");
+  const opts = document.getElementById("options");
+  qDiv.textContent = currentQ ? currentQ.q : "";
+  opts.innerHTML = "";
+
+  if(!currentQ) return;
+
+  currentQ.opts.forEach((text,i)=>{
+    const row = document.createElement("div");
+    row.className = "opt-row";
+
+    const sw = document.createElement("div");
+    sw.className = "swatch";
+    sw.style.background = colors[i];
+
+    const tx = document.createElement("div");
+    tx.className = "opt-text";
+    tx.textContent = text;
+
+    row.appendChild(sw);
+    row.appendChild(tx);
+    opts.appendChild(row);
+  });
+
+  resizeCanvasToFit();
+}
+
+function nextQuestion(){
+  if(qIndex >= questions.length) return null;
+  return questions[qIndex++];
+}
+
+/* =================== RESPONSIVE CANVAS SIZING =================== */
 function resizeCanvasToFit(){
   const container = document.getElementById("gameContainer");
   const h1 = container.querySelector("h1");
@@ -196,9 +360,9 @@ function resizeCanvasToFit(){
   const q  = document.getElementById("question");
   const opt= document.getElementById("options");
   const fb = document.getElementById("feedback");
+  const controls = document.getElementById("mobileControls");
 
   const vh = Math.floor(window.visualViewport ? window.visualViewport.height : window.innerHeight);
-  const containerPadding = 8; // small breathing space
 
   const used =
     h1.getBoundingClientRect().height +
@@ -206,15 +370,14 @@ function resizeCanvasToFit(){
     q.getBoundingClientRect().height +
     opt.getBoundingClientRect().height +
     fb.getBoundingClientRect().height +
-    containerPadding + 16;
+    18;
 
-  const available = Math.max(180, vh - used);
+  const controlsH = controls ? controls.getBoundingClientRect().height : 0;
+  const available = Math.max(180, vh - used - controlsH);
 
-  // Make it square but never exceed container width
   const maxW = Math.floor(Math.min(window.innerWidth, 560) - 24);
   let size = Math.floor(Math.min(maxW, available));
 
-  // Snap to grid multiple of box so food aligns perfectly
   size = Math.max(box * 10, Math.floor(size / box) * box);
 
   canvas.width = size;
@@ -223,46 +386,8 @@ function resizeCanvasToFit(){
   canvas.style.height = size + "px";
 }
 
-window.addEventListener("resize", ()=>{ resizeCanvasToFit(); }, {passive:true});
-window.addEventListener("orientationchange", ()=>{ setTimeout(resizeCanvasToFit, 50); }, {passive:true});
-
-/* =================== UI =================== */
-const $qdone= document.getElementById("qdone");
-const $sc   = document.getElementById("sc");
-
-function updateHUD(){
-  $qdone.textContent = String(answered);
-  $sc.textContent = String(score);
-}
-
-function renderQuestion(){
-  const q = currentQ;
-  const qDiv = document.getElementById("question");
-  const opts = document.getElementById("options");
-  qDiv.textContent = q ? q.q : "";
-  opts.innerHTML = "";
-  if(!q) return;
-
-  q.opts.forEach((text,i)=>{
-    const row=document.createElement("div");
-    row.className="opt-row";
-
-    const sw=document.createElement("div");
-    sw.className="swatch";
-    sw.style.background=colors[i];
-
-    const tx=document.createElement("div");
-    tx.className="opt-text";
-    tx.textContent=text;
-
-    row.appendChild(sw);
-    row.appendChild(tx);
-    opts.appendChild(row);
-  });
-
-  // After rendering MCQ, re-fit canvas so everything stays on-screen
-  resizeCanvasToFit();
-}
+window.addEventListener("resize", ()=> resizeCanvasToFit(), {passive:true});
+window.addEventListener("orientationchange", ()=> setTimeout(resizeCanvasToFit, 60), {passive:true});
 
 /* =================== Food & movement =================== */
 function randCell(){
@@ -275,8 +400,8 @@ function equal(a,b){ return a.x===b.x && a.y===b.y; }
 function blocked(p){ return snake.some(s=>equal(s,p)) || foods.some(f=>f&&equal(f,p)); }
 function spawnFoodFor(i){
   let p;
-  do{ p=randCell(); }while(blocked(p));
-  foods[i]={x:p.x,y:p.y,color:colors[i],idx:i};
+  do{ p = randCell(); } while(blocked(p));
+  foods[i] = {x:p.x, y:p.y, color:colors[i], idx:i};
 }
 
 /* =================== Input =================== */
@@ -286,6 +411,7 @@ function setDirection(newDir){
   if(newDir==="UP"    && dir!=="DOWN")  queuedDir="UP";
   if(newDir==="DOWN"  && dir!=="UP")    queuedDir="DOWN";
 }
+
 document.addEventListener("keydown",(e)=>{
   if(e.key==="ArrowLeft")setDirection("LEFT");
   if(e.key==="ArrowRight")setDirection("RIGHT");
@@ -293,20 +419,26 @@ document.addEventListener("keydown",(e)=>{
   if(e.key==="ArrowDown")setDirection("DOWN");
 });
 
+document.querySelectorAll("#mobileControls button").forEach(btn=>{
+  btn.addEventListener("touchstart", (e)=>{
+    e.preventDefault();
+    setDirection(btn.dataset.dir);
+  }, {passive:false});
+  btn.addEventListener("click", ()=> setDirection(btn.dataset.dir));
+});
+
 /* =================== Question logic =================== */
-function nextQuestion(){
-  if(questions.length===0) return null;
-  return questions.shift();
-}
 function handleAnswer(colorIdx){
   if(!currentQ) return;
 
-  if(colorIdx===currentQ.a){
+  const fb = document.getElementById("feedback");
+
+  if(colorIdx === currentQ.a){
     score += 5;
-    document.getElementById("feedback").textContent = "✅ Correct! +5";
+    fb.textContent = "✅ Correct! +5";
   } else {
     score = Math.max(0, score - 2);
-    document.getElementById("feedback").textContent = "❌ Wrong! -2";
+    fb.textContent = "❌ Wrong! -2";
   }
 
   answered++;
@@ -314,7 +446,7 @@ function handleAnswer(colorIdx){
 
   if(answered >= totalQuestions){
     running = false;
-    document.getElementById("feedback").textContent = "🎯 All questions completed!";
+    fb.textContent = "🎯 All questions completed!";
     setTimeout(() => redirectToForm(), 1500);
   } else {
     currentQ = nextQuestion();
@@ -326,64 +458,65 @@ function handleAnswer(colorIdx){
 function step(){
   dir = queuedDir;
 
-  let hx=snake[0].x, hy=snake[0].y;
+  let hx = snake[0].x, hy = snake[0].y;
   if(dir==="LEFT")hx-=box; if(dir==="RIGHT")hx+=box;
   if(dir==="UP")hy-=box;   if(dir==="DOWN")hy+=box;
 
   if(hx<0)hx=canvas.width-box; if(hy<0)hy=canvas.height-box;
   if(hx>=canvas.width)hx=0;    if(hy>=canvas.height)hy=0;
 
-  const idx=foods.findIndex(f=>f.x===hx&&f.y===hy);
+  const idx = foods.findIndex(f => f && f.x===hx && f.y===hy);
 
-  if(idx>-1){
-    // Answer happens INSIDE GAME by eating correct color
+  if(idx > -1){
+    // learner answers by eating the correct colour
     handleAnswer(idx);
     spawnFoodFor(idx);
   } else {
     snake.pop();
   }
 
-  const head={x:hx,y:hy};
+  const head = {x:hx, y:hy};
 
-  if(snake.some((s,i)=>i&&equal(s,head))){
-    running=false;
-    document.getElementById("feedback").textContent="💀 Game Over!";
-    setTimeout(()=>redirectToForm(),1500);
+  if(snake.some((s,i)=> i && equal(s,head))){
+    running = false;
+    document.getElementById("feedback").textContent = "💀 Game Over!";
+    setTimeout(()=>redirectToForm(), 1500);
   } else {
     snake.unshift(head);
   }
 }
 
 function draw(){
-  ctx.fillStyle="#000";
+  ctx.fillStyle = "#000";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
   foods.forEach(f=>{
-    ctx.fillStyle=f.color;
+    if(!f) return;
+    ctx.fillStyle = f.color;
     ctx.fillRect(f.x,f.y,box,box);
   });
 
   snake.forEach((s,i)=>{
-    ctx.fillStyle=i===0?"#00e0ff":"#0099aa";
+    ctx.fillStyle = i===0 ? "#00e0ff" : "#0099aa";
     ctx.fillRect(s.x,s.y,box,box);
   });
 
   ctx.fillStyle="#fff";
   ctx.font="14px Arial";
-  ctx.fillText("Score: "+score,10,16);
+  ctx.fillText("Score: " + score, 10, 16);
 }
 
 function loop(ts){
   if(!running){ draw(); return; }
 
-  if(!lastTs) lastTs=ts;
-  const dt=ts-lastTs;
-  lastTs=ts;
-  acc+=dt;
+  if(!lastTs) lastTs = ts;
+  const dt = ts - lastTs;
+  lastTs = ts;
+  acc += dt;
 
-  if(acc>=moveInterval){
+  if(acc >= moveInterval){
     step();
-    acc=0;
+    acc = 0;
   }
 
   draw();
@@ -402,12 +535,14 @@ function redirectToForm(){
 /* =================== Start =================== */
 function start(){
   resizeCanvasToFit();
+
   foods = new Array(4);
   for(let i=0;i<4;i++) spawnFoodFor(i);
 
   currentQ = nextQuestion();
   renderQuestion();
   updateHUD();
+
   requestAnimationFrame(loop);
 }
 start();
