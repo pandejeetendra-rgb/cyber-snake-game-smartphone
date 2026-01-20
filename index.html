@@ -2,31 +2,286 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Cyber Security Snake Game – GBL Version</title>
+
 <style>
-  body { margin:0; background:#0e0e0e; color:#fff; font-family:Arial,sans-serif; text-align:center; }
-  h1 { margin:14px 0; color:#00e0ff; font-size:20px; }
-  #gameContainer { display:flex; flex-direction:column; align-items:center; }
-  canvas { background:#000; border:2px solid #00e0ff; border-radius:10px; margin-top:8px; touch-action:none; }
-  #hud { margin-top:6px; font-size:14px; color:#b8faff; }
-  #question { color:#00e0ff; font-size:16px; margin:10px 0 6px; min-height:22px; }
-  #options { display:flex; flex-direction:column; gap:6px; width:92%; max-width:380px; margin:0 auto 8px; }
-  .opt-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid #00e0ff; border-radius:8px; background:#121212; }
-  .swatch { width:18px; height:18px; border:1px solid #fff; border-radius:3px; flex:0 0 18px; }
-  .opt-text { text-align:left; flex:1; }
-  #feedback { min-height:20px; margin:4px 0 8px; font-size:14px; }
+  :root{
+    --bg:#0e0e0e;
+    --panel:#121212;
+    --panel2:#0b0b0b;
+    --text:#ffffff;
+    --muted:#b8faff;
+    --accent:#00e0ff;
+    --border: rgba(0,224,255,.55);
+    --shadow: 0 14px 35px rgba(0,0,0,.45);
+    --radius: 16px;
+    --ctrlH: 92px;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    overflow: hidden; /* avoid page scroll during play */
+  }
+
+  .app{
+    height: 100dvh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(0,224,255,.18);
+    background: rgba(18,18,18,.86);
+    backdrop-filter: blur(8px);
+  }
+
+  .title{
+    font-size: 16px;
+    color: var(--accent);
+    font-weight: 700;
+    line-height: 1.2;
+    text-align:left;
+  }
+
+  .hud{
+    font-size: 13px;
+    color: var(--muted);
+    text-align:right;
+    white-space:nowrap;
+  }
+
+  .stage{
+    flex:1;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 10px;
+    padding-bottom: calc(var(--ctrlH) + env(safe-area-inset-bottom) + 10px);
+  }
+
+  canvas{
+    width: 100%;
+    height: 100%;
+    max-width: 560px;
+    max-height: 560px;
+    background: #000;
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    touch-action: none;
+  }
+
+  /* Controls: sticky bottom bar */
+  .controls{
+    position: fixed;
+    left:0; right:0; bottom:0;
+    height: var(--ctrlH);
+    padding: 10px 12px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    background: rgba(18,18,18,.92);
+    border-top: 1px solid rgba(0,224,255,.18);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 10px;
+  }
+
+  .ctrl{
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    border: 1px solid rgba(0,224,255,.35);
+    background: #0f0f0f;
+    color: #fff;
+    font-size: 20px;
+    box-shadow: 0 10px 22px rgba(0,0,0,.35);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ctrl:active{ transform: translateY(1px); }
+
+  .ctrlMid{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:center;
+  }
+  .ctrlRow{ display:flex; gap:8px; }
+
+  /* MCQ overlay */
+  .overlay{
+    position: fixed;
+    inset: 0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding: 14px;
+    background: rgba(0,0,0,.55);
+  }
+  .overlay.show{ display:flex; }
+
+  .card{
+    width: min(720px, 100%);
+    max-height: calc(100dvh - 28px - env(safe-area-inset-bottom));
+    background: #101010;
+    border: 1px solid rgba(0,224,255,.25);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .cardHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(0,224,255,.18);
+  }
+  .cardTitle{
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .closeBtn{
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.15);
+    background: #0b0b0b;
+    color: #fff;
+    font-size: 18px;
+  }
+
+  .cardBody{
+    padding: 14px;
+    overflow:auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .qText{
+    font-size: 16px;
+    line-height: 1.35;
+    margin-bottom: 12px;
+  }
+
+  .options{
+    display:grid;
+    gap:10px;
+  }
+
+  .optBtn{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(0,224,255,.35);
+    background: #121212;
+    color: #fff;
+    text-align:left;
+    font-size: 15px;
+    cursor:pointer;
+  }
+  .optBtn:active{ transform: translateY(1px); }
+
+  .swatch{
+    width:18px;
+    height:18px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,.75);
+    flex:0 0 18px;
+  }
+
+  .feedback{
+    margin-top: 12px;
+    min-height: 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .cardFooter{
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+    padding: 12px 14px;
+    border-top: 1px solid rgba(0,224,255,.18);
+  }
+
+  .btn{
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: #0b0b0b;
+    color:#fff;
+    font-size: 15px;
+  }
+  .btnPrimary{
+    background: #2563eb;
+    border-color: transparent;
+  }
 </style>
 </head>
+
 <body>
-  <h1>🐍 Cyber Security Snake Game – Game-Based Learning</h1>
-  <div id="gameContainer">
-    <canvas id="gameCanvas" width="300" height="300"></canvas>
-    <div id="hud">Questions answered: <span id="qdone">0</span>/8 • Score: <span id="sc">0</span></div>
-    <div id="question"></div>
-    <div id="options"></div>
-    <div id="feedback"></div>
+<div class="app">
+
+  <header class="topbar">
+    <div class="title">🐍 Cyber Security Snake (GBL)</div>
+    <div class="hud">
+      Answered: <span id="qdone">0</span>/8<br/>
+      Score: <span id="sc">0</span>
+    </div>
+  </header>
+
+  <main class="stage">
+    <canvas id="gameCanvas"></canvas>
+  </main>
+
+  <nav class="controls" aria-label="Game controls">
+    <button id="leftBtn" class="ctrl" type="button">◀</button>
+
+    <div class="ctrlMid">
+      <button id="upBtn" class="ctrl" type="button">▲</button>
+      <div class="ctrlRow">
+        <button id="downBtn" class="ctrl" type="button">▼</button>
+        <button id="rightBtn" class="ctrl" type="button">▶</button>
+      </div>
+    </div>
+
+    <button id="pauseBtn" class="ctrl" type="button">⏸</button>
+  </nav>
+
+</div>
+
+<!-- MCQ Overlay -->
+<div class="overlay" id="mcqOverlay" aria-hidden="true">
+  <div class="card" role="dialog" aria-modal="true">
+    <div class="cardHeader">
+      <div class="cardTitle">Quick Check</div>
+      <button id="closeMcq" class="closeBtn" type="button">✕</button>
+    </div>
+    <div class="cardBody">
+      <div id="question" class="qText"></div>
+      <div id="options" class="options"></div>
+      <div id="feedback" class="feedback"></div>
+    </div>
+    <div class="cardFooter">
+      <button id="continueBtn" class="btn btnPrimary" type="button" style="display:none;">Continue</button>
+    </div>
   </div>
+</div>
 
 <script>
 /* =================== CONFIG =================== */
@@ -35,103 +290,167 @@ const params = new URLSearchParams(window.location.search);
 const pid = params.get("pid") || "UOU-GBL-TEST";
 const arm = "GBL";
 
-/* =================== GAME STATE =================== */
+/* =================== CANVAS FIT (mobile-safe) =================== */
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const box = 15;
+
+function fitCanvas(){
+  const stage = document.querySelector(".stage");
+  const rect = stage.getBoundingClientRect();
+  const size = Math.floor(Math.min(rect.width, rect.height));
+
+  canvas.style.width = size + "px";
+  canvas.style.height = size + "px";
+
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(size * dpr);
+  canvas.height = Math.floor(size * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener("resize", fitCanvas, {passive:true});
+window.addEventListener("orientationchange", fitCanvas, {passive:true});
+fitCanvas();
+
+/* =================== GAME GRID =================== */
+/* box size tuned for mobile. We keep it constant in CSS pixels. */
+const box = 16;
+function gridW(){ return Math.floor((canvas.clientWidth || 300) / box); }
+function gridH(){ return Math.floor((canvas.clientHeight || 300) / box); }
+function clampToGrid(){
+  // ensure canvas dimension in CSS pixels is multiple of box for neat grid
+  const cssW = Math.floor(parseFloat(getComputedStyle(canvas).width));
+  const cssH = Math.floor(parseFloat(getComputedStyle(canvas).height));
+  // nothing fatal if not multiple; we just use floor in randCell()
+  return { cssW, cssH };
+}
+
+/* =================== GAME STATE =================== */
 let snake = [{ x:5*box, y:5*box }];
 let dir = "RIGHT";
 let queuedDir = "RIGHT";
 let score = 0;
 let foods = [];
 const colors = ["red","yellow","green","blue"];
-let moveInterval = 300;
+let moveInterval = 240;
 let acc = 0, lastTs = 0;
 let running = true;
+let pausedForMcq = false;
+let pausedByUser = false;
 
 let answered = 0;
 const totalQuestions = 8;
 
 /* ===== Questions (same as Control Group) ===== */
 const questions = [
-  {
-    q: "Which of the following represents the three key principles of cybersecurity?",
-    opts: ["Anonymity, Security, Resilience", "Confidentiality, Integrity, Availability", "Speed, Access, Control", "Detection, Recovery, Response"],
-    a: 1
-  },
-  {
-    q: "Which Indian law primarily deals with cybercrimes?",
-    opts: ["The Evidence Act", "The IT Act 2000", "The Penal Code 1860", "The RTI Act 2005"],
-    a: 1
-  },
-  {
-    q: "Which of these is NOT a goal of data protection?",
-    opts: ["Preventing unauthorized access", "Maintaining confidentiality", "Encouraging data leaks", "Ensuring integrity"],
-    a: 2
-  },
-  {
-    q: "Which protocol indicates a secure website connection?",
-    opts: ["HTTP", "HTTPS", "FTP", "IP"],
-    a: 1
-  },
-  {
-    q: "Social engineering primarily exploits:",
-    opts: ["Software vulnerabilities", "Human psychology", "Hardware failures", "Encryption errors"],
-    a: 1
-  },
-  {
-    q: "Which browser feature helps verify the authenticity of websites?",
-    opts: ["Address bar lock icon", "Bookmarks", "Cookies", "History tab"],
-    a: 0
-  },
-  {
-    q: "Which is a good smartphone security practice?",
-    opts: ["Use public Wi-Fi for banking", "Download apps from unknown sites", "Install updates regularly", "Share passwords via SMS"],
-    a: 2
-  },
-  {
-    q: "Which of these is a secure banking habit?",
-    opts: ["Sharing OTP with friends", "Saving passwords in browser", "Using two-factor authentication", "Clicking email links for login"],
-    a: 2
-  }
+  { q:"Which of the following represents the three key principles of cybersecurity?",
+    opts:["Anonymity, Security, Resilience","Confidentiality, Integrity, Availability","Speed, Access, Control","Detection, Recovery, Response"], a:1 },
+  { q:"Which Indian law primarily deals with cybercrimes?",
+    opts:["The Evidence Act","The IT Act 2000","The Penal Code 1860","The RTI Act 2005"], a:1 },
+  { q:"Which of these is NOT a goal of data protection?",
+    opts:["Preventing unauthorized access","Maintaining confidentiality","Encouraging data leaks","Ensuring integrity"], a:2 },
+  { q:"Which protocol indicates a secure website connection?",
+    opts:["HTTP","HTTPS","FTP","IP"], a:1 },
+  { q:"Social engineering primarily exploits:",
+    opts:["Software vulnerabilities","Human psychology","Hardware failures","Encryption errors"], a:1 },
+  { q:"Which browser feature helps verify the authenticity of websites?",
+    opts:["Address bar lock icon","Bookmarks","Cookies","History tab"], a:0 },
+  { q:"Which is a good smartphone security practice?",
+    opts:["Use public Wi-Fi for banking","Download apps from unknown sites","Install updates regularly","Share passwords via SMS"], a:2 },
+  { q:"Which of these is a secure banking habit?",
+    opts:["Sharing OTP with friends","Saving passwords in browser","Using two-factor authentication","Clicking email links for login"], a:2 }
 ];
-function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a;}
+
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
 shuffle(questions);
 let currentQ = null;
 
 /* =================== UI =================== */
 const $qdone= document.getElementById("qdone");
 const $sc   = document.getElementById("sc");
+const overlay = document.getElementById("mcqOverlay");
+const qDiv = document.getElementById("question");
+const optsDiv = document.getElementById("options");
+const fb = document.getElementById("feedback");
+const continueBtn = document.getElementById("continueBtn");
 
 function updateHUD(){
   $qdone.textContent = String(answered);
   $sc.textContent = String(score);
 }
 
+function openMcq(){
+  pausedForMcq = true;
+  overlay.classList.add("show");
+  overlay.setAttribute("aria-hidden","false");
+  continueBtn.style.display = "none";
+}
+
+function closeMcq(){
+  overlay.classList.remove("show");
+  overlay.setAttribute("aria-hidden","true");
+  pausedForMcq = false;
+  fb.textContent = "";
+}
+
+document.getElementById("closeMcq").addEventListener("click", ()=>{
+  // keep it strict: if MCQ is open, force an answer before continuing
+  // so just ignore close until after feedback is shown
+});
+
+continueBtn.addEventListener("click", ()=>{
+  closeMcq();
+});
+
 function renderQuestion(){
   const q = currentQ;
-  const qDiv = document.getElementById("question");
-  const opts = document.getElementById("options");
   qDiv.textContent = q ? q.q : "";
-  opts.innerHTML = "";
+  optsDiv.innerHTML = "";
+  fb.textContent = "";
+  continueBtn.style.display = "none";
+
   if(!q) return;
+
   q.opts.forEach((text,i)=>{
-    const row=document.createElement("div");
-    row.className="opt-row";
-    const sw=document.createElement("div");
-    sw.className="swatch"; sw.style.background=colors[i];
-    const tx=document.createElement("div");
-    tx.className="opt-text"; tx.textContent=text;
-    row.appendChild(sw); row.appendChild(tx);
-    opts.appendChild(row);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "optBtn";
+    btn.setAttribute("data-idx", String(i));
+
+    const sw = document.createElement("div");
+    sw.className = "swatch";
+    sw.style.background = colors[i];
+
+    const tx = document.createElement("div");
+    tx.textContent = text;
+
+    btn.appendChild(sw);
+    btn.appendChild(tx);
+
+    btn.addEventListener("click", ()=> handleAnswer(i), { once:true });
+    optsDiv.appendChild(btn);
   });
 }
 
 /* =================== Food & movement =================== */
-function randCell(){ return { x:Math.floor(Math.random()*(canvas.width/box))*box, y:Math.floor(Math.random()*(canvas.height/box))*box }; }
+function randCell(){
+  const { cssW, cssH } = clampToGrid();
+  const cols = Math.max(10, Math.floor(cssW / box));
+  const rows = Math.max(10, Math.floor(cssH / box));
+  return { x: Math.floor(Math.random()*cols)*box, y: Math.floor(Math.random()*rows)*box };
+}
 function equal(a,b){ return a.x===b.x && a.y===b.y; }
 function blocked(p){ return snake.some(s=>equal(s,p)) || foods.some(f=>f&&equal(f,p)); }
-function spawnFoodFor(i){ let p; do{p=randCell();}while(blocked(p)); foods[i]={x:p.x,y:p.y,color:colors[i],idx:i}; }
+function spawnFoodFor(i){
+  let p;
+  do{ p = randCell(); } while(blocked(p));
+  foods[i] = { x:p.x, y:p.y, color:colors[i], idx:i };
+}
 
 /* =================== Input =================== */
 function setDirection(newDir){
@@ -140,6 +459,7 @@ function setDirection(newDir){
   if(newDir==="UP"    && dir!=="DOWN")  queuedDir="UP";
   if(newDir==="DOWN"  && dir!=="UP")    queuedDir="DOWN";
 }
+
 document.addEventListener("keydown",(e)=>{
   if(e.key==="ArrowLeft")setDirection("LEFT");
   if(e.key==="ArrowRight")setDirection("RIGHT");
@@ -147,72 +467,181 @@ document.addEventListener("keydown",(e)=>{
   if(e.key==="ArrowDown")setDirection("DOWN");
 });
 
+function bindHold(btn, dirName){
+  const el = document.getElementById(btn);
+  const down = (ev)=>{ ev.preventDefault(); setDirection(dirName); };
+  el.addEventListener("touchstart", down, {passive:false});
+  el.addEventListener("mousedown", down);
+}
+bindHold("leftBtn","LEFT");
+bindHold("rightBtn","RIGHT");
+bindHold("upBtn","UP");
+bindHold("downBtn","DOWN");
+
+document.getElementById("pauseBtn").addEventListener("click", ()=>{
+  pausedByUser = !pausedByUser;
+});
+
 /* =================== Question logic =================== */
 function nextQuestion(){
   if(questions.length===0) return null;
   return questions.shift();
 }
+
 function handleAnswer(colorIdx){
   if(!currentQ) return;
+
+  // disable remaining option clicks immediately
+  [...optsDiv.querySelectorAll(".optBtn")].forEach(b=> b.disabled = true);
+
   if(colorIdx===currentQ.a){
     score += 5;
-    document.getElementById("feedback").textContent = "✅ Correct! +5";
+    fb.textContent = "✅ Correct! +5";
   } else {
     score = Math.max(0, score - 2);
-    document.getElementById("feedback").textContent = "❌ Wrong! -2";
+    fb.textContent = "❌ Wrong! -2";
   }
   answered++;
   updateHUD();
 
   if(answered >= totalQuestions){
     running = false;
-    document.getElementById("feedback").textContent = "🎯 All questions completed!";
-    setTimeout(() => {
-      redirectToForm();
-    }, 1500);
-  } else {
+    fb.textContent = "🎯 All questions completed!";
+    continueBtn.style.display = "inline-block";
+    setTimeout(() => redirectToForm(), 1200);
+    return;
+  }
+
+  // prepare next question, but let learner read feedback first
+  continueBtn.style.display = "inline-block";
+  continueBtn.onclick = ()=>{
     currentQ = nextQuestion();
     renderQuestion();
-  }
+    closeMcq();
+  };
 }
 
 /* =================== Game mechanics =================== */
+function wrap(val, max){ return (val < 0) ? (max - box) : (val >= max ? 0 : val); }
+
 function step(){
   dir = queuedDir;
-  let hx=snake[0].x, hy=snake[0].y;
-  if(dir==="LEFT")hx-=box; if(dir==="RIGHT")hx+=box; if(dir==="UP")hy-=box; if(dir==="DOWN")hy+=box;
-  if(hx<0)hx=canvas.width-box; if(hy<0)hy=canvas.height-box;
-  if(hx>=canvas.width)hx=0; if(hy>=canvas.height)hy=0;
-  const idx=foods.findIndex(f=>f.x===hx&&f.y===hy);
-  if(idx>-1){ handleAnswer(idx); spawnFoodFor(idx); } else { snake.pop(); }
-  const head={x:hx,y:hy};
-  if(snake.some((s,i)=>i&&equal(s,head))){ running=false; document.getElementById("feedback").textContent="💀 Game Over!"; setTimeout(()=>redirectToForm(),1500); }
-  else snake.unshift(head);
+
+  let hx = snake[0].x;
+  let hy = snake[0].y;
+
+  if(dir==="LEFT")  hx -= box;
+  if(dir==="RIGHT") hx += box;
+  if(dir==="UP")    hy -= box;
+  if(dir==="DOWN")  hy += box;
+
+  const { cssW, cssH } = clampToGrid();
+  hx = wrap(hx, cssW);
+  hy = wrap(hy, cssH);
+
+  const idx = foods.findIndex(f => f && f.x===hx && f.y===hy);
+
+  if(idx > -1){
+    // Eat food -> open MCQ overlay and pause
+    openMcq();
+    handleFoodHit(idx);
+  } else {
+    snake.pop();
+  }
+
+  const head = { x:hx, y:hy };
+
+  if(snake.some((s,i)=> i && equal(s, head))){
+    running = false;
+    // show MCQ overlay as a feedback panel on game over
+    openMcq();
+    qDiv.textContent = "💀 Game Over!";
+    optsDiv.innerHTML = "";
+    fb.textContent = "You can continue to submit your score.";
+    continueBtn.style.display = "inline-block";
+    continueBtn.onclick = ()=> redirectToForm();
+    return;
+  }
+
+  snake.unshift(head);
 }
+
+function handleFoodHit(foodIdx){
+  // set currentQ only when food is eaten
+  if(!currentQ) currentQ = nextQuestion();
+  renderQuestion();
+
+  // immediately respawn that food so next time it exists
+  spawnFoodFor(foodIdx);
+}
+
 function draw(){
-  ctx.fillStyle="#000"; ctx.fillRect(0,0,canvas.width,canvas.height);
-  foods.forEach(f=>{ctx.fillStyle=f.color; ctx.fillRect(f.x,f.y,box,box);});
-  snake.forEach((s,i)=>{ctx.fillStyle=i===0?"#00e0ff":"#0099aa"; ctx.fillRect(s.x,s.y,box,box);});
-  ctx.fillStyle="#fff"; ctx.font="14px Arial"; ctx.fillText("Score: "+score,10,16);
+  const { cssW, cssH } = clampToGrid();
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0,0,cssW,cssH);
+
+  foods.forEach(f=>{
+    if(!f) return;
+    ctx.fillStyle = f.color;
+    ctx.fillRect(f.x, f.y, box, box);
+  });
+
+  snake.forEach((s,i)=>{
+    ctx.fillStyle = (i===0) ? "#00e0ff" : "#0099aa";
+    ctx.fillRect(s.x, s.y, box, box);
+  });
+
+  ctx.fillStyle = "#fff";
+  ctx.font = "14px Arial";
+  ctx.fillText("Score: " + score, 10, 16);
+
+  if(pausedByUser){
+    ctx.fillStyle = "rgba(0,0,0,.55)";
+    ctx.fillRect(0,0,cssW,cssH);
+    ctx.fillStyle = "#fff";
+    ctx.font = "18px Arial";
+    ctx.fillText("Paused", 12, 36);
+  }
 }
+
 function loop(ts){
-  if(!running){ draw(); return; }
-  if(!lastTs) lastTs=ts; const dt=ts-lastTs; lastTs=ts; acc+=dt;
-  if(acc>=moveInterval){ step(); acc=0; }
-  draw(); requestAnimationFrame(loop);
+  if(!running){
+    draw();
+    return;
+  }
+
+  if(!lastTs) lastTs = ts;
+  const dt = ts - lastTs;
+  lastTs = ts;
+
+  const paused = pausedForMcq || pausedByUser;
+  if(!paused){
+    acc += dt;
+    if(acc >= moveInterval){
+      step();
+      acc = 0;
+    }
+  }
+
+  draw();
+  requestAnimationFrame(loop);
 }
 
 /* =================== Redirect =================== */
 function redirectToForm(){
-  const redirectUrl = `${formBase}?usp=pp_url&entry.1614294036=${pid}&entry.686742715=${arm}&entry.1506921454=${score}`;
+  const redirectUrl =
+    `${formBase}?usp=pp_url&entry.1614294036=${encodeURIComponent(pid)}` +
+    `&entry.686742715=${encodeURIComponent(arm)}` +
+    `&entry.1506921454=${encodeURIComponent(score)}`;
   window.location.href = redirectUrl;
 }
 
 /* =================== Start =================== */
 function start(){
-  foods = new Array(4); for(let i=0;i<4;i++) spawnFoodFor(i);
-  currentQ = nextQuestion();
-  renderQuestion();
+  foods = new Array(4);
+  for(let i=0;i<4;i++) spawnFoodFor(i);
+
+  currentQ = nextQuestion(); // preload first
   updateHUD();
   requestAnimationFrame(loop);
 }
